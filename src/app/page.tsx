@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { useApronDesignStore } from '@/store/apron-design'
-import type { SolidColorConfig, PatternConfig } from '@/store/apron-design'
+import type { SolidColorConfig, PatternConfig, NeckStrapStyle, PocketConfig, PocketMode } from '@/store/apron-design'
+import { NECK_STRAP_STYLES } from '@/store/apron-design'
 import { ApronSVGGenerator } from '@/lib/svg-generator'
 import { ExportUtils } from '@/lib/export-utils'
 import { 
@@ -32,7 +33,7 @@ import { toast } from 'sonner'
  * @description 这只是个示例页面，你可以随意修改这个页面或进行全面重构
  */
 export default function ApronDesignGenerator() {
-	const { design, updateDesign, updateColorConfig, resetDesign, tempFile, setTempFile } = useApronDesignStore()
+	const { design, updateDesign, updateColorConfig, updatePocketConfig, resetDesign, tempFile, setTempFile } = useApronDesignStore()
 	const [svgContent, setSvgContent] = useState('')
 	const [isExporting, setIsExporting] = useState(false)
 	const [colorType, setColorType] = useState<'solid' | 'pattern'>(design.colorConfig.type)
@@ -185,6 +186,69 @@ export default function ApronDesignGenerator() {
 		toast.success('设计已重置')
 	}
 
+	// 处理口袋配置更新
+	const handlePocketModeChange = (mode: PocketMode) => {
+		const newConfig: PocketConfig = { mode }
+		
+		// 根据模式设置默认值
+		switch (mode) {
+			case 'single':
+				newConfig.singlePocket = {
+					width: 12,
+					height: 10,
+					positionX: 50,
+					positionY: 60
+				}
+				break
+			case 'double':
+				newConfig.doublePockets = {
+					leftPocket: { width: 10, height: 8 },
+					rightPocket: { width: 10, height: 8 },
+					spacing: 8,
+					positionY: 60
+				}
+				break
+			case 'multiple':
+				newConfig.multiplePockets = {
+					totalWidth: 30,
+					height: 8,
+					count: 3,
+					positionY: 60
+				}
+				break
+		}
+		
+		updatePocketConfig(newConfig)
+		toast.success('口袋模式已更新')
+	}
+
+	const handleSinglePocketUpdate = (updates: Partial<NonNullable<PocketConfig['singlePocket']>>) => {
+		if (design.pocketConfig.mode === 'single' && design.pocketConfig.singlePocket) {
+			updatePocketConfig({
+				...design.pocketConfig,
+				singlePocket: { ...design.pocketConfig.singlePocket, ...updates }
+			})
+		}
+	}
+
+	const handleDoublePocketsUpdate = (updates: Partial<NonNullable<PocketConfig['doublePockets']>>) => {
+		if (design.pocketConfig.mode === 'double' && design.pocketConfig.doublePockets) {
+			updatePocketConfig({
+				...design.pocketConfig,
+				doublePockets: { ...design.pocketConfig.doublePockets, ...updates }
+			})
+		}
+	}
+
+	const handleMultiplePocketsUpdate = (updates: Partial<NonNullable<PocketConfig['multiplePockets']>>) => {
+		if (design.pocketConfig.mode === 'multiple' && design.pocketConfig.multiplePockets) {
+			updatePocketConfig({
+				...design.pocketConfig,
+				multiplePockets: { ...design.pocketConfig.multiplePockets, ...updates }
+			})
+		}
+	}
+
 	return (
 		<div className="min-h-screen bg-gray-50 p-4">
 			<div className="mx-auto max-w-7xl">
@@ -272,6 +336,98 @@ export default function ApronDesignGenerator() {
 									<p className="text-xs text-gray-500 mt-2">
 										* 腰部高度 = 整体高度 × 33%，下部高度 = 整体高度 - 腰部高度
 									</p>
+								</div>
+							</CardContent>
+						</Card>
+
+						{/* 颈带款式选择 */}
+						<Card>
+							<CardHeader>
+								<CardTitle className="flex items-center gap-2">
+									<Settings className="h-5 w-5" />
+									颈带款式选择
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="space-y-4">
+								<div>
+									<Label htmlFor="neckStrapStyle">选择颈带款式</Label>
+									<Select
+										value={design.neckStrapStyle}
+										onValueChange={(value: NeckStrapStyle) => 
+											updateDesign({ neckStrapStyle: value })
+										}
+									>
+										<SelectTrigger>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											{Object.values(NECK_STRAP_STYLES).map((style) => (
+												<SelectItem key={style.style} value={style.style}>
+													<div className="flex flex-col">
+														<span className="font-medium">{style.name}</span>
+														<span className="text-xs text-gray-500">{style.description}</span>
+													</div>
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+
+								{/* 当前选择的款式预览 */}
+								<div className="rounded-lg bg-green-50 p-4">
+									<div className="flex items-center gap-2 mb-2">
+										<span className="text-sm font-medium text-green-900">当前选择</span>
+									</div>
+									<div className="text-sm">
+										<div className="font-medium text-green-800">
+											{NECK_STRAP_STYLES[design.neckStrapStyle]?.name || '经典圆弧'}
+										</div>
+										<div className="text-green-600 mt-1">
+											{NECK_STRAP_STYLES[design.neckStrapStyle]?.description || '传统的圆弧形颈带，简洁优雅'}
+										</div>
+									</div>
+								</div>
+
+								<Separator />
+
+								{/* 颈带长度调节 */}
+								<div>
+									<Label htmlFor="neckStrap">颈带长度 (CM)</Label>
+									<div className="flex items-center gap-2">
+										<Input
+											id="neckStrap"
+											type="range"
+											min="30"
+											max="80"
+											step="2"
+											value={design.neckStrap}
+											onChange={(e) => updateDesign({ neckStrap: Number(e.target.value) })}
+											className="flex-1"
+										/>
+										<span className="text-sm font-medium w-12 text-center">
+											{design.neckStrap}
+										</span>
+									</div>
+								</div>
+
+								{/* 腰带长度调节 */}
+								<div>
+									<Label htmlFor="waistStrap">腰带长度 (CM)</Label>
+									<div className="flex items-center gap-2">
+										<Input
+											id="waistStrap"
+											type="range"
+											min="40"
+											max="120"
+											step="5"
+											value={design.waistStrap}
+											onChange={(e) => updateDesign({ waistStrap: Number(e.target.value) })}
+											className="flex-1"
+										/>
+										<span className="text-sm font-medium w-12 text-center">
+											{design.waistStrap}
+										</span>
+									</div>
 								</div>
 							</CardContent>
 						</Card>
@@ -460,35 +616,322 @@ export default function ApronDesignGenerator() {
 							</CardContent>
 						</Card>
 
-						{/* 绑带参数 */}
+						{/* 口袋配置 */}
 						<Card>
 							<CardHeader>
-								<CardTitle>绑带参数 (使用模板默认值)</CardTitle>
+								<CardTitle className="flex items-center gap-2">
+									<Package className="h-5 w-5" />
+									口袋配置
+								</CardTitle>
 							</CardHeader>
-							<CardContent className="space-y-4">
-								<div className="grid grid-cols-2 gap-4">
+							<CardContent>
+								<div className="space-y-4">
 									<div>
-										<Label htmlFor="neckStrap">颈带长度 (CM)</Label>
-										<Input
-											id="neckStrap"
-											type="number"
-											value={design.neckStrap}
-											onChange={(e) => updateDesign({ neckStrap: Number(e.target.value) })}
-											min="30"
-											max="80"
-										/>
+										<Label htmlFor="pocketMode">选择口袋模式</Label>
+										<Select
+											value={design.pocketConfig.mode}
+											onValueChange={(value: PocketMode) => handlePocketModeChange(value)}
+										>
+											<SelectTrigger>
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="none">无口袋</SelectItem>
+												<SelectItem value="single">单口袋</SelectItem>
+												<SelectItem value="double">双口袋</SelectItem>
+												<SelectItem value="multiple">多口袋</SelectItem>
+											</SelectContent>
+										</Select>
 									</div>
-									<div>
-										<Label htmlFor="waistStrap">腰带长度 (CM)</Label>
-										<Input
-											id="waistStrap"
-											type="number"
-											value={design.waistStrap}
-											onChange={(e) => updateDesign({ waistStrap: Number(e.target.value) })}
-											min="50"
-											max="120"
-										/>
-									</div>
+
+									{/* 单口袋配置 */}
+									{design.pocketConfig.mode === 'single' && design.pocketConfig.singlePocket && (
+										<div className="space-y-4 p-4 bg-blue-50 rounded-lg">
+											<div className="flex items-center gap-2 mb-2">
+												<Package className="h-4 w-4 text-blue-600" />
+												<span className="text-sm font-medium text-blue-900">单口袋设置</span>
+											</div>
+											
+											<div className="grid grid-cols-2 gap-4">
+												<div>
+													<Label htmlFor="singlePocketWidth">口袋宽度 (CM)</Label>
+													<Input
+														id="singlePocketWidth"
+														type="number"
+														value={design.pocketConfig.singlePocket.width}
+														onChange={(e) => handleSinglePocketUpdate({ width: Number(e.target.value) })}
+														min="5"
+														max="30"
+														step="0.5"
+													/>
+												</div>
+												<div>
+													<Label htmlFor="singlePocketHeight">口袋高度 (CM)</Label>
+													<Input
+														id="singlePocketHeight"
+														type="number"
+														value={design.pocketConfig.singlePocket.height}
+														onChange={(e) => handleSinglePocketUpdate({ height: Number(e.target.value) })}
+														min="3"
+														max="20"
+														step="0.5"
+													/>
+												</div>
+											</div>
+											
+											<div>
+												<Label htmlFor="singlePocketX">水平位置 (%)</Label>
+												<div className="flex items-center gap-2">
+													<Input
+														id="singlePocketX"
+														type="range"
+														min="10"
+														max="90"
+														step="5"
+														value={design.pocketConfig.singlePocket.positionX}
+														onChange={(e) => handleSinglePocketUpdate({ positionX: Number(e.target.value) })}
+														className="flex-1"
+													/>
+													<span className="text-sm font-medium w-12">
+														{design.pocketConfig.singlePocket.positionX}%
+													</span>
+												</div>
+											</div>
+											
+											<div>
+												<Label htmlFor="singlePocketY">垂直位置 (%)</Label>
+												<div className="flex items-center gap-2">
+													<Input
+														id="singlePocketY"
+														type="range"
+														min="30"
+														max="80"
+														step="5"
+														value={design.pocketConfig.singlePocket.positionY}
+														onChange={(e) => handleSinglePocketUpdate({ positionY: Number(e.target.value) })}
+														className="flex-1"
+													/>
+													<span className="text-sm font-medium w-12">
+														{design.pocketConfig.singlePocket.positionY}%
+													</span>
+												</div>
+											</div>
+										</div>
+									)}
+
+									{/* 双口袋配置 */}
+									{design.pocketConfig.mode === 'double' && design.pocketConfig.doublePockets && (
+										<div className="space-y-4 p-4 bg-green-50 rounded-lg">
+											<div className="flex items-center gap-2 mb-2">
+												<Package className="h-4 w-4 text-green-600" />
+												<span className="text-sm font-medium text-green-900">双口袋设置</span>
+											</div>
+											
+											<div className="grid grid-cols-2 gap-4">
+												<div className="space-y-3">
+													<h4 className="text-sm font-medium text-green-800">左口袋</h4>
+													<div>
+														<Label htmlFor="leftPocketWidth">宽度 (CM)</Label>
+														<Input
+															id="leftPocketWidth"
+															type="number"
+															value={design.pocketConfig.doublePockets.leftPocket.width}
+															onChange={(e) => handleDoublePocketsUpdate({ 
+																leftPocket: { 
+																	...design.pocketConfig.doublePockets!.leftPocket, 
+																	width: Number(e.target.value) 
+																} 
+															})}
+															min="5"
+															max="25"
+															step="0.5"
+														/>
+													</div>
+													<div>
+														<Label htmlFor="leftPocketHeight">高度 (CM)</Label>
+														<Input
+															id="leftPocketHeight"
+															type="number"
+															value={design.pocketConfig.doublePockets.leftPocket.height}
+															onChange={(e) => handleDoublePocketsUpdate({ 
+																leftPocket: { 
+																	...design.pocketConfig.doublePockets!.leftPocket, 
+																	height: Number(e.target.value) 
+																} 
+															})}
+															min="3"
+															max="20"
+															step="0.5"
+														/>
+													</div>
+												</div>
+												
+												<div className="space-y-3">
+													<h4 className="text-sm font-medium text-green-800">右口袋</h4>
+													<div>
+														<Label htmlFor="rightPocketWidth">宽度 (CM)</Label>
+														<Input
+															id="rightPocketWidth"
+															type="number"
+															value={design.pocketConfig.doublePockets.rightPocket.width}
+															onChange={(e) => handleDoublePocketsUpdate({ 
+																rightPocket: { 
+																	...design.pocketConfig.doublePockets!.rightPocket, 
+																	width: Number(e.target.value) 
+																} 
+															})}
+															min="5"
+															max="25"
+															step="0.5"
+														/>
+													</div>
+													<div>
+														<Label htmlFor="rightPocketHeight">高度 (CM)</Label>
+														<Input
+															id="rightPocketHeight"
+															type="number"
+															value={design.pocketConfig.doublePockets.rightPocket.height}
+															onChange={(e) => handleDoublePocketsUpdate({ 
+																rightPocket: { 
+																	...design.pocketConfig.doublePockets!.rightPocket, 
+																	height: Number(e.target.value) 
+																} 
+															})}
+															min="3"
+															max="20"
+															step="0.5"
+														/>
+													</div>
+												</div>
+											</div>
+											
+											<div>
+												<Label htmlFor="pocketSpacing">口袋间距 (CM)</Label>
+												<Input
+													id="pocketSpacing"
+													type="number"
+													value={design.pocketConfig.doublePockets.spacing}
+													onChange={(e) => handleDoublePocketsUpdate({ spacing: Number(e.target.value) })}
+													min="2"
+													max="20"
+													step="0.5"
+												/>
+											</div>
+											
+											<div>
+												<Label htmlFor="doublePocketY">垂直位置 (%)</Label>
+												<div className="flex items-center gap-2">
+													<Input
+														id="doublePocketY"
+														type="range"
+														min="30"
+														max="80"
+														step="5"
+														value={design.pocketConfig.doublePockets.positionY}
+														onChange={(e) => handleDoublePocketsUpdate({ positionY: Number(e.target.value) })}
+														className="flex-1"
+													/>
+													<span className="text-sm font-medium w-12">
+														{design.pocketConfig.doublePockets.positionY}%
+													</span>
+												</div>
+											</div>
+										</div>
+									)}
+
+									{/* 多口袋配置 */}
+									{design.pocketConfig.mode === 'multiple' && design.pocketConfig.multiplePockets && (
+										<div className="space-y-4 p-4 bg-purple-50 rounded-lg">
+											<div className="flex items-center gap-2 mb-2">
+												<Package className="h-4 w-4 text-purple-600" />
+												<span className="text-sm font-medium text-purple-900">多口袋设置</span>
+											</div>
+											
+											<div className="grid grid-cols-2 gap-4">
+												<div>
+													<Label htmlFor="totalPocketWidth">总宽度 (CM)</Label>
+													<Input
+														id="totalPocketWidth"
+														type="number"
+														value={design.pocketConfig.multiplePockets.totalWidth}
+														onChange={(e) => handleMultiplePocketsUpdate({ totalWidth: Number(e.target.value) })}
+														min="15"
+														max="50"
+														step="1"
+													/>
+													<p className="text-xs text-gray-500 mt-1">
+														所有口袋加起来的总宽度
+													</p>
+												</div>
+												<div>
+													<Label htmlFor="multiplePocketHeight">口袋高度 (CM)</Label>
+													<Input
+														id="multiplePocketHeight"
+														type="number"
+														value={design.pocketConfig.multiplePockets.height}
+														onChange={(e) => handleMultiplePocketsUpdate({ height: Number(e.target.value) })}
+														min="3"
+														max="15"
+														step="0.5"
+													/>
+													<p className="text-xs text-gray-500 mt-1">
+														所有口袋统一高度
+													</p>
+												</div>
+											</div>
+											
+											<div>
+												<Label htmlFor="pocketCount">口袋数量</Label>
+												<Select
+													value={design.pocketConfig.multiplePockets.count.toString()}
+													onValueChange={(value) => handleMultiplePocketsUpdate({ count: Number(value) })}
+												>
+													<SelectTrigger>
+														<SelectValue />
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem value="2">2个口袋</SelectItem>
+														<SelectItem value="3">3个口袋</SelectItem>
+														<SelectItem value="4">4个口袋</SelectItem>
+														<SelectItem value="5">5个口袋</SelectItem>
+														<SelectItem value="6">6个口袋</SelectItem>
+													</SelectContent>
+												</Select>
+											</div>
+											
+											<div>
+												<Label htmlFor="multiplePocketY">垂直位置 (%)</Label>
+												<div className="flex items-center gap-2">
+													<Input
+														id="multiplePocketY"
+														type="range"
+														min="30"
+														max="80"
+														step="5"
+														value={design.pocketConfig.multiplePockets.positionY}
+														onChange={(e) => handleMultiplePocketsUpdate({ positionY: Number(e.target.value) })}
+														className="flex-1"
+													/>
+													<span className="text-sm font-medium w-12">
+														{design.pocketConfig.multiplePockets.positionY}%
+													</span>
+												</div>
+											</div>
+											
+											{/* 计算显示 */}
+											<div className="rounded-lg bg-purple-100 p-3">
+												<div className="text-sm">
+													<div className="font-medium text-purple-800 mb-1">自动计算</div>
+													<div className="text-purple-700">
+														每个口袋宽度: {(design.pocketConfig.multiplePockets.totalWidth / design.pocketConfig.multiplePockets.count).toFixed(1)} CM
+													</div>
+													<div className="text-xs text-purple-600 mt-1">
+														总宽度 ÷ 口袋数量 = 单个口袋宽度
+													</div>
+												</div>
+											</div>
+										</div>
+									)}
 								</div>
 							</CardContent>
 						</Card>

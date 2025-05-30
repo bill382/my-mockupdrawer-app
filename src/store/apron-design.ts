@@ -4,6 +4,80 @@ import { persist } from 'zustand/middleware'
 // 颜色类型：纯色或印花
 export type ColorType = 'solid' | 'pattern'
 
+// 颈带款式类型
+export type NeckStrapStyle = 'classic' | 'halter' | 'cross' | 'adjustable' | 'tie'
+
+// 口袋模式类型
+export type PocketMode = 'none' | 'single' | 'double' | 'multiple'
+
+// 口袋配置接口
+export interface PocketConfig {
+  mode: PocketMode
+  // 单口袋配置
+  singlePocket?: {
+    width: number // 口袋宽度 (cm)
+    height: number // 口袋高度 (cm)
+    positionX: number // 水平位置百分比 (0-100)
+    positionY: number // 垂直位置百分比 (0-100)
+  }
+  // 双口袋配置
+  doublePockets?: {
+    leftPocket: {
+      width: number // 左口袋宽度 (cm)
+      height: number // 左口袋高度 (cm)
+    }
+    rightPocket: {
+      width: number // 右口袋宽度 (cm)
+      height: number // 右口袋高度 (cm)
+    }
+    spacing: number // 两个口袋之间的间距 (cm)
+    positionY: number // 垂直位置百分比 (0-100)
+  }
+  // 多口袋配置
+  multiplePockets?: {
+    totalWidth: number // 所有口袋的总宽度 (cm)
+    height: number // 口袋高度 (cm)
+    count: number // 口袋数量 (2-6)
+    positionY: number // 垂直位置百分比 (0-100)
+  }
+}
+
+// 颈带款式配置
+export interface NeckStrapConfig {
+  style: NeckStrapStyle
+  name: string
+  description: string
+}
+
+// 预定义的颈带款式
+export const NECK_STRAP_STYLES: Record<NeckStrapStyle, NeckStrapConfig> = {
+  classic: {
+    style: 'classic',
+    name: '经典圆弧',
+    description: '传统的圆弧形颈带，简洁优雅'
+  },
+  halter: {
+    style: 'halter',
+    name: '挂脖式',
+    description: '绕颈式设计，时尚现代'
+  },
+  cross: {
+    style: 'cross',
+    name: '交叉式',
+    description: '颈带和腰带为同一根带子，穿过腰部孔洞连接'
+  },
+  adjustable: {
+    style: 'adjustable',
+    name: '可调节',
+    description: '带扣环的可调节颈带'
+  },
+  tie: {
+    style: 'tie',
+    name: '系带式',
+    description: '可系结的柔软带子'
+  }
+}
+
 // 纯色配置
 export interface SolidColorConfig {
   type: 'solid'
@@ -38,15 +112,22 @@ export interface ApronDesign {
   // 颜色规格
   colorConfig: SolidColorConfig | PatternConfig
   
+  // 口袋配置
+  pocketConfig: PocketConfig
+  
   // 绑带参数（使用模板默认值）
   neckStrap: number
   waistStrap: number
+  
+  // 颈带款式
+  neckStrapStyle: NeckStrapStyle
 }
 
 interface ApronDesignStore {
   design: ApronDesign
   updateDesign: (updates: Partial<Omit<ApronDesign, 'waistHeight' | 'bottomHeight'>>) => void
   updateColorConfig: (colorConfig: SolidColorConfig | PatternConfig) => void
+  updatePocketConfig: (pocketConfig: PocketConfig) => void
   resetDesign: () => void
   // 计算方法
   calculateDimensions: () => void
@@ -66,8 +147,12 @@ const defaultDesign: ApronDesign = {
     colorName: '珊瑚红',
     hexValue: '#FF6B6B'
   },
+  pocketConfig: {
+    mode: 'none'
+  },
   neckStrap: 50,
-  waistStrap: 80
+  waistStrap: 80,
+  neckStrapStyle: 'classic'
 }
 
 export const useApronDesignStore = create<ApronDesignStore>()(
@@ -96,6 +181,11 @@ export const useApronDesignStore = create<ApronDesignStore>()(
           design: { ...state.design, colorConfig }
         })),
         
+      updatePocketConfig: (pocketConfig) =>
+        set((state) => ({
+          design: { ...state.design, pocketConfig }
+        })),
+        
       calculateDimensions: () =>
         set((state) => {
           const newWaistHeight = Math.round(state.design.totalHeight * 0.33 * 10) / 10
@@ -116,7 +206,7 @@ export const useApronDesignStore = create<ApronDesignStore>()(
         set({ design: defaultDesign, tempFile: null })
     }),
     {
-      name: 'apron-design-storage-v4', // 更改存储键名以清除旧数据
+      name: 'apron-design-storage-v6', // 更改存储键名以清除旧数据，支持口袋配置
       partialize: (state) => ({
         design: {
           ...state.design,

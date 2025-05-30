@@ -1,5 +1,5 @@
 import { SVG } from '@svgdotjs/svg.js'
-import type { ApronDesign, SolidColorConfig, PatternConfig } from '@/store/apron-design'
+import type { ApronDesign, SolidColorConfig, PatternConfig, NeckStrapStyle, PocketConfig } from '@/store/apron-design'
 
 // 单位转换：CM 转 INCH
 const cmToInch = (cm: number): number => cm * 0.393701
@@ -969,14 +969,65 @@ export class ApronSVGGenerator {
     const bottomWidth = this.design.bottomWidth * this.scale
     const topStartX = startX + (bottomWidth - topWidth) / 2
 
-    // 颈带 - 自然的圆弧形状
+    // 根据颈带款式绘制不同的颈带
+    this.drawNeckStrap(topStartX, startY, topWidth)
+    
+    // 腰带 - 只有在非交叉式时才绘制独立的腰带
+    if (this.design.neckStrapStyle !== 'cross') {
+      const waistY = startY + this.design.waistHeight * this.scale
+      const waistStrapLength = this.design.waistStrap * this.scale
+      
+      // 腰带连接在围裙腰部和下部的分界线上（梯形底边的两端）
+      const leftWaistX = startX
+      const rightWaistX = startX + bottomWidth
+      
+      // 左腰带
+      this.svg.line(leftWaistX, waistY, 
+                    leftWaistX - waistStrapLength, waistY)
+        .stroke('#8B4513')
+        .attr('stroke-width', 6)
+        .attr('stroke-linecap', 'round')
+      
+      // 右腰带
+      this.svg.line(rightWaistX, waistY, 
+                    rightWaistX + waistStrapLength, waistY)
+        .stroke('#8B4513')
+        .attr('stroke-width', 6)
+        .attr('stroke-linecap', 'round')
+    }
+  }
+
+  private drawNeckStrap(topStartX: number, startY: number, topWidth: number) {
     const neckStrapLength = this.design.neckStrap * this.scale
-    const neckStrapHeight = 20 * this.scale // 颈带的弧度高度
+    const neckStrapHeight = 20 * this.scale
+    
+    switch (this.design.neckStrapStyle) {
+      case 'classic':
+        this.drawClassicNeckStrap(topStartX, startY, topWidth, neckStrapLength, neckStrapHeight)
+        break
+      case 'halter':
+        this.drawHalterNeckStrap(topStartX, startY, topWidth, neckStrapLength, neckStrapHeight)
+        break
+      case 'cross':
+        this.drawCrossNeckStrap(topStartX, startY, topWidth, neckStrapLength, neckStrapHeight)
+        break
+      case 'adjustable':
+        this.drawAdjustableNeckStrap(topStartX, startY, topWidth, neckStrapLength, neckStrapHeight)
+        break
+      case 'tie':
+        this.drawTieNeckStrap(topStartX, startY, topWidth, neckStrapLength, neckStrapHeight)
+        break
+      default:
+        this.drawClassicNeckStrap(topStartX, startY, topWidth, neckStrapLength, neckStrapHeight)
+    }
+  }
+
+  private drawClassicNeckStrap(topStartX: number, startY: number, topWidth: number, neckStrapLength: number, neckStrapHeight: number) {
+    // 经典圆弧形颈带
     const leftNeckX = topStartX - neckStrapLength / 6
     const rightNeckX = topStartX + topWidth + neckStrapLength / 6
     const neckStrapTopY = startY - neckStrapHeight
     
-    // 绘制颈带的圆弧形状
     const neckStrapPath = `
       M ${topStartX} ${startY}
       Q ${leftNeckX} ${neckStrapTopY} ${topStartX + topWidth / 2} ${neckStrapTopY - 5 * this.scale}
@@ -988,27 +1039,193 @@ export class ApronSVGGenerator {
       .stroke('#8B4513')
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
+  }
 
-    // 腰带 - 从腰部和下部的分界线处延伸
-    const waistY = startY + this.design.waistHeight * this.scale
-    const waistStrapLength = this.design.waistStrap * this.scale
+  private drawHalterNeckStrap(topStartX: number, startY: number, topWidth: number, neckStrapLength: number, neckStrapHeight: number) {
+    // 挂脖式颈带 - 两条带子汇聚到颈部中心
+    const centerX = topStartX + topWidth / 2
+    const neckCenterY = startY - neckStrapHeight - 10 * this.scale
     
-    // 腰带连接在围裙腰部和下部的分界线上（梯形底边的两端）
-    const leftWaistX = startX
-    const rightWaistX = startX + bottomWidth
-    
-    // 左腰带
-    this.svg.line(leftWaistX, waistY, 
-                  leftWaistX - waistStrapLength, waistY)
+    // 左侧带子
+    this.svg.line(topStartX, startY, centerX - 5 * this.scale, neckCenterY)
       .stroke('#8B4513')
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
     
-    // 右腰带
-    this.svg.line(rightWaistX, waistY, 
-                  rightWaistX + waistStrapLength, waistY)
+    // 右侧带子
+    this.svg.line(topStartX + topWidth, startY, centerX + 5 * this.scale, neckCenterY)
       .stroke('#8B4513')
       .attr('stroke-width', 6)
+      .attr('stroke-linecap', 'round')
+    
+    // 颈部连接环
+    this.svg.circle(8 * this.scale)
+      .center(centerX, neckCenterY)
+      .fill('none')
+      .stroke('#8B4513')
+      .attr('stroke-width', 3)
+  }
+
+  private drawCrossNeckStrap(topStartX: number, startY: number, topWidth: number, neckStrapLength: number, neckStrapHeight: number) {
+    // 交叉式颈带 - 一根连续的带子穿过腰部孔洞形成腰带
+    const centerX = topStartX + topWidth / 2
+    const neckStrapTopY = startY - neckStrapHeight
+    
+    // 计算腰部位置
+    const waistY = startY + this.design.waistHeight * this.scale
+    const waistStrapLength = this.design.waistStrap * this.scale
+    
+    // 计算围裙边界
+    const startX = 30 * this.scale
+    const bottomWidth = this.design.bottomWidth * this.scale
+    const leftWaistX = startX
+    const rightWaistX = startX + bottomWidth
+    
+    // 腰部孔洞位置（在腰线上，距离边缘一定距离）
+    const holeOffset = 15 * this.scale
+    const leftHoleX = leftWaistX + holeOffset
+    const rightHoleX = rightWaistX - holeOffset
+    
+    // 绘制连续的带子路径
+    // 左侧：从围裙左上角到颈部中心
+    this.svg.line(topStartX, startY, centerX - 10 * this.scale, neckStrapTopY)
+      .stroke('#8B4513')
+      .attr('stroke-width', 6)
+      .attr('stroke-linecap', 'round')
+    
+    // 右侧：从围裙右上角到颈部中心
+    this.svg.line(topStartX + topWidth, startY, centerX + 10 * this.scale, neckStrapTopY)
+      .stroke('#8B4513')
+      .attr('stroke-width', 6)
+      .attr('stroke-linecap', 'round')
+    
+    // 颈部连接段
+    this.svg.line(centerX - 10 * this.scale, neckStrapTopY, centerX + 10 * this.scale, neckStrapTopY)
+      .stroke('#8B4513')
+      .attr('stroke-width', 6)
+      .attr('stroke-linecap', 'round')
+    
+    // 连续带子：从左上角穿过左侧腰部孔洞到左腰带
+    this.svg.line(topStartX, startY, leftHoleX, waistY)
+      .stroke('#8B4513')
+      .attr('stroke-width', 4)
+      .attr('stroke-linecap', 'round')
+      .attr('stroke-dasharray', '5,3') // 虚线表示穿过围裙内部
+    
+    // 左腰带段
+    this.svg.line(leftHoleX, waistY, leftWaistX - waistStrapLength, waistY)
+      .stroke('#8B4513')
+      .attr('stroke-width', 6)
+      .attr('stroke-linecap', 'round')
+    
+    // 连续带子：从右上角穿过右侧腰部孔洞到右腰带
+    this.svg.line(topStartX + topWidth, startY, rightHoleX, waistY)
+      .stroke('#8B4513')
+      .attr('stroke-width', 4)
+      .attr('stroke-linecap', 'round')
+      .attr('stroke-dasharray', '5,3') // 虚线表示穿过围裙内部
+    
+    // 右腰带段
+    this.svg.line(rightHoleX, waistY, rightWaistX + waistStrapLength, waistY)
+      .stroke('#8B4513')
+      .attr('stroke-width', 6)
+      .attr('stroke-linecap', 'round')
+    
+    // 绘制腰部孔洞
+    this.svg.circle(8 * this.scale)
+      .center(leftHoleX, waistY)
+      .fill('none')
+      .stroke('#333333')
+      .attr('stroke-width', 2)
+    
+    this.svg.circle(8 * this.scale)
+      .center(rightHoleX, waistY)
+      .fill('none')
+      .stroke('#333333')
+      .attr('stroke-width', 2)
+    
+    // 添加孔洞标注
+    this.svg.text('孔洞')
+      .move(leftHoleX - 15 * this.scale, waistY - 20 * this.scale)
+      .font({ size: 8, anchor: 'middle', family: 'Arial, sans-serif' })
+      .fill('#666666')
+    
+    this.svg.text('孔洞')
+      .move(rightHoleX + 15 * this.scale, waistY - 20 * this.scale)
+      .font({ size: 8, anchor: 'middle', family: 'Arial, sans-serif' })
+      .fill('#666666')
+  }
+
+  private drawAdjustableNeckStrap(topStartX: number, startY: number, topWidth: number, neckStrapLength: number, neckStrapHeight: number) {
+    // 可调节颈带 - 带有扣环
+    const leftNeckX = topStartX - neckStrapLength / 6
+    const rightNeckX = topStartX + topWidth + neckStrapLength / 6
+    const neckStrapTopY = startY - neckStrapHeight
+    const centerX = topStartX + topWidth / 2
+    
+    // 左侧带子到扣环
+    this.svg.line(topStartX, startY, centerX - 15 * this.scale, neckStrapTopY)
+      .stroke('#8B4513')
+      .attr('stroke-width', 6)
+      .attr('stroke-linecap', 'round')
+    
+    // 右侧带子到扣环
+    this.svg.line(topStartX + topWidth, startY, centerX + 15 * this.scale, neckStrapTopY)
+      .stroke('#8B4513')
+      .attr('stroke-width', 6)
+      .attr('stroke-linecap', 'round')
+    
+    // 调节扣环
+    this.svg.rect(30 * this.scale, 8 * this.scale)
+      .center(centerX, neckStrapTopY)
+      .fill('none')
+      .stroke('#666666')
+      .attr('stroke-width', 2)
+      .rx(2 * this.scale)
+    
+    // 扣环内部细节
+    this.svg.line(centerX - 10 * this.scale, neckStrapTopY, centerX + 10 * this.scale, neckStrapTopY)
+      .stroke('#666666')
+      .attr('stroke-width', 1)
+  }
+
+  private drawTieNeckStrap(topStartX: number, startY: number, topWidth: number, neckStrapLength: number, neckStrapHeight: number) {
+    // 系带式颈带 - 柔软的带子末端
+    const leftNeckX = topStartX - neckStrapLength / 4
+    const rightNeckX = topStartX + topWidth + neckStrapLength / 4
+    const neckStrapTopY = startY - neckStrapHeight
+    
+    // 左侧带子
+    this.svg.line(topStartX, startY, leftNeckX, neckStrapTopY)
+      .stroke('#8B4513')
+      .attr('stroke-width', 6)
+      .attr('stroke-linecap', 'round')
+    
+    // 右侧带子
+    this.svg.line(topStartX + topWidth, startY, rightNeckX, neckStrapTopY)
+      .stroke('#8B4513')
+      .attr('stroke-width', 6)
+      .attr('stroke-linecap', 'round')
+    
+    // 左侧带子末端（系带效果）
+    this.svg.circle(4 * this.scale)
+      .center(leftNeckX, neckStrapTopY)
+      .fill('#8B4513')
+    
+    // 右侧带子末端（系带效果）
+    this.svg.circle(4 * this.scale)
+      .center(rightNeckX, neckStrapTopY)
+      .fill('#8B4513')
+    
+    // 系带的飘带效果
+    this.svg.line(leftNeckX, neckStrapTopY, leftNeckX - 8 * this.scale, neckStrapTopY + 12 * this.scale)
+      .stroke('#8B4513')
+      .attr('stroke-width', 3)
+      .attr('stroke-linecap', 'round')
+    
+    this.svg.line(rightNeckX, neckStrapTopY, rightNeckX + 8 * this.scale, neckStrapTopY + 12 * this.scale)
+      .stroke('#8B4513')
+      .attr('stroke-width', 3)
       .attr('stroke-linecap', 'round')
   }
 
@@ -1019,28 +1236,146 @@ export class ApronSVGGenerator {
     const waistHeight = this.design.waistHeight * this.scale
     const bottomHeight = this.design.bottomHeight * this.scale
     
-    // 口袋尺寸（参考样本图中的比例）
-    const pocketWidth = 28 * this.scale  // 28cm宽
-    const pocketHeight = 16 * this.scale // 16cm高
+    const pocketConfig = this.design.pocketConfig
     
-    // 口袋位置（居中，在下部区域）
-    const pocketX = startX + (bottomWidth - pocketWidth) / 2
-    const pocketY = startY + waistHeight + bottomHeight * 0.3
+    // 如果没有口袋配置，直接返回
+    if (!pocketConfig || pocketConfig.mode === 'none') {
+      return
+    }
+    
+    switch (pocketConfig.mode) {
+      case 'single':
+        this.drawSinglePocket(startX, startY, bottomWidth, waistHeight, bottomHeight)
+        break
+      case 'double':
+        this.drawDoublePockets(startX, startY, bottomWidth, waistHeight, bottomHeight)
+        break
+      case 'multiple':
+        this.drawMultiplePockets(startX, startY, bottomWidth, waistHeight, bottomHeight)
+        break
+    }
+  }
+
+  private drawSinglePocket(startX: number, startY: number, bottomWidth: number, waistHeight: number, bottomHeight: number) {
+    const config = this.design.pocketConfig.singlePocket
+    if (!config) return
+    
+    const pocketWidth = config.width * this.scale
+    const pocketHeight = config.height * this.scale
+    
+    // 计算口袋位置
+    const pocketX = startX + (bottomWidth * config.positionX / 100) - (pocketWidth / 2)
+    const pocketY = startY + waistHeight + (bottomHeight * config.positionY / 100) - (pocketHeight / 2)
     
     // 绘制口袋轮廓
     this.svg.rect(pocketWidth, pocketHeight)
       .move(pocketX, pocketY)
       .fill('none')
       .stroke('#333333')
-      .attr('stroke-width', 1)
-      .attr('stroke-dasharray', '3,3')
+      .attr('stroke-width', 1.5)
+      .attr('stroke-dasharray', '4,2')
     
-    // 口袋分隔线（中间的竖线）
-    this.svg.line(pocketX + pocketWidth / 2, pocketY, 
-                  pocketX + pocketWidth / 2, pocketY + pocketHeight)
+    // 添加口袋标注
+    this.svg.text(`口袋: ${config.width}×${config.height}CM`)
+      .move(pocketX, pocketY - 15)
+      .font({ size: 9, family: 'Arial, sans-serif' })
+      .fill('#666666')
+  }
+
+  private drawDoublePockets(startX: number, startY: number, bottomWidth: number, waistHeight: number, bottomHeight: number) {
+    const config = this.design.pocketConfig.doublePockets
+    if (!config) return
+    
+    const leftPocketWidth = config.leftPocket.width * this.scale
+    const leftPocketHeight = config.leftPocket.height * this.scale
+    const rightPocketWidth = config.rightPocket.width * this.scale
+    const rightPocketHeight = config.rightPocket.height * this.scale
+    const spacing = config.spacing * this.scale
+    
+    // 计算总宽度和起始位置
+    const totalWidth = leftPocketWidth + spacing + rightPocketWidth
+    const startPocketX = startX + (bottomWidth - totalWidth) / 2
+    const pocketY = startY + waistHeight + (bottomHeight * config.positionY / 100) - Math.max(leftPocketHeight, rightPocketHeight) / 2
+    
+    // 绘制左口袋
+    const leftPocketX = startPocketX
+    this.svg.rect(leftPocketWidth, leftPocketHeight)
+      .move(leftPocketX, pocketY)
+      .fill('none')
       .stroke('#333333')
-      .attr('stroke-width', 1)
-      .attr('stroke-dasharray', '3,3')
+      .attr('stroke-width', 1.5)
+      .attr('stroke-dasharray', '4,2')
+    
+    // 绘制右口袋
+    const rightPocketX = startPocketX + leftPocketWidth + spacing
+    this.svg.rect(rightPocketWidth, rightPocketHeight)
+      .move(rightPocketX, pocketY)
+      .fill('none')
+      .stroke('#333333')
+      .attr('stroke-width', 1.5)
+      .attr('stroke-dasharray', '4,2')
+    
+    // 添加口袋标注
+    this.svg.text(`左口袋: ${config.leftPocket.width}×${config.leftPocket.height}CM`)
+      .move(leftPocketX, pocketY - 15)
+      .font({ size: 9, family: 'Arial, sans-serif' })
+      .fill('#666666')
+    
+    this.svg.text(`右口袋: ${config.rightPocket.width}×${config.rightPocket.height}CM`)
+      .move(rightPocketX, pocketY - 15)
+      .font({ size: 9, family: 'Arial, sans-serif' })
+      .fill('#666666')
+    
+    // 添加间距标注
+    this.svg.text(`间距: ${config.spacing}CM`)
+      .move(leftPocketX + leftPocketWidth + spacing/2, pocketY + Math.max(leftPocketHeight, rightPocketHeight) + 10)
+      .font({ size: 8, anchor: 'middle', family: 'Arial, sans-serif' })
+      .fill('#999999')
+  }
+
+  private drawMultiplePockets(startX: number, startY: number, bottomWidth: number, waistHeight: number, bottomHeight: number) {
+    const config = this.design.pocketConfig.multiplePockets
+    if (!config) return
+    
+    const totalWidth = config.totalWidth * this.scale
+    const pocketHeight = config.height * this.scale
+    const pocketCount = config.count
+    const singlePocketWidth = totalWidth / pocketCount
+    
+    // 计算起始位置
+    const startPocketX = startX + (bottomWidth - totalWidth) / 2
+    const pocketY = startY + waistHeight + (bottomHeight * config.positionY / 100) - (pocketHeight / 2)
+    
+    // 绘制每个口袋
+    for (let i = 0; i < pocketCount; i++) {
+      const pocketX = startPocketX + (i * singlePocketWidth)
+      
+      this.svg.rect(singlePocketWidth, pocketHeight)
+        .move(pocketX, pocketY)
+        .fill('none')
+        .stroke('#333333')
+        .attr('stroke-width', 1.5)
+        .attr('stroke-dasharray', '4,2')
+      
+      // 如果不是最后一个口袋，绘制分隔线
+      if (i < pocketCount - 1) {
+        this.svg.line(pocketX + singlePocketWidth, pocketY, pocketX + singlePocketWidth, pocketY + pocketHeight)
+          .stroke('#333333')
+          .attr('stroke-width', 1)
+          .attr('stroke-dasharray', '2,2')
+      }
+    }
+    
+    // 添加口袋标注
+    this.svg.text(`${pocketCount}个口袋: 总宽${config.totalWidth}CM × 高${config.height}CM`)
+      .move(startPocketX, pocketY - 15)
+      .font({ size: 9, family: 'Arial, sans-serif' })
+      .fill('#666666')
+    
+    this.svg.text(`单个口袋宽度: ${(config.totalWidth / pocketCount).toFixed(1)}CM`)
+      .move(startPocketX, pocketY + pocketHeight + 10)
+      .font({ size: 8, family: 'Arial, sans-serif' })
+      .fill('#999999')
   }
 
   private addDimensions() {
