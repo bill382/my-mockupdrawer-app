@@ -5,7 +5,7 @@ import { persist } from 'zustand/middleware'
 export type ColorType = 'solid' | 'pattern'
 
 // 颈带款式类型
-export type NeckStrapStyle = 'classic' | 'halter' | 'cross' | 'adjustable' | 'tie'
+export type NeckStrapStyle = 'classic' | 'cross' | 'adjustable' | 'tie'
 
 // 口袋模式类型
 export type PocketMode = 'none' | 'single' | 'double' | 'multiple'
@@ -55,11 +55,6 @@ export const NECK_STRAP_STYLES: Record<NeckStrapStyle, NeckStrapConfig> = {
     style: 'classic',
     name: '经典圆弧',
     description: '传统的圆弧形颈带，简洁优雅'
-  },
-  halter: {
-    style: 'halter',
-    name: '挂脖式',
-    description: '绕颈式设计，时尚现代'
   },
   cross: {
     style: 'cross',

@@ -972,7 +972,7 @@ export class ApronSVGGenerator {
     // 根据颈带款式绘制不同的颈带
     this.drawNeckStrap(topStartX, startY, topWidth)
     
-    // 腰带 - 只有在非交叉式时才绘制独立的腰带
+    // 腰带 - 只有非交叉式才绘制独立的腰带
     if (this.design.neckStrapStyle !== 'cross') {
       const waistY = startY + this.design.waistHeight * this.scale
       const waistStrapLength = this.design.waistStrap * this.scale
@@ -1004,9 +1004,6 @@ export class ApronSVGGenerator {
     switch (this.design.neckStrapStyle) {
       case 'classic':
         this.drawClassicNeckStrap(topStartX, startY, topWidth, neckStrapLength, neckStrapHeight)
-        break
-      case 'halter':
-        this.drawHalterNeckStrap(topStartX, startY, topWidth, neckStrapLength, neckStrapHeight)
         break
       case 'cross':
         this.drawCrossNeckStrap(topStartX, startY, topWidth, neckStrapLength, neckStrapHeight)
@@ -1041,119 +1038,103 @@ export class ApronSVGGenerator {
       .attr('stroke-linecap', 'round')
   }
 
-  private drawHalterNeckStrap(topStartX: number, startY: number, topWidth: number, neckStrapLength: number, neckStrapHeight: number) {
-    // 挂脖式颈带 - 两条带子汇聚到颈部中心
-    const centerX = topStartX + topWidth / 2
-    const neckCenterY = startY - neckStrapHeight - 10 * this.scale
-    
-    // 左侧带子
-    this.svg.line(topStartX, startY, centerX - 5 * this.scale, neckCenterY)
-      .stroke('#8B4513')
-      .attr('stroke-width', 6)
-      .attr('stroke-linecap', 'round')
-    
-    // 右侧带子
-    this.svg.line(topStartX + topWidth, startY, centerX + 5 * this.scale, neckCenterY)
-      .stroke('#8B4513')
-      .attr('stroke-width', 6)
-      .attr('stroke-linecap', 'round')
-    
-    // 颈部连接环
-    this.svg.circle(8 * this.scale)
-      .center(centerX, neckCenterY)
-      .fill('none')
-      .stroke('#8B4513')
-      .attr('stroke-width', 3)
-  }
-
   private drawCrossNeckStrap(topStartX: number, startY: number, topWidth: number, neckStrapLength: number, neckStrapHeight: number) {
-    // 交叉式颈带 - 一根连续的带子穿过腰部孔洞形成腰带
-    const centerX = topStartX + topWidth / 2
-    const neckStrapTopY = startY - neckStrapHeight
+    // 交叉式颈带 - 倒V字形交叉
+    const leftConnectionX = topStartX
+    const rightConnectionX = topStartX + topWidth
+    const connectionY = startY
     
-    // 计算腰部位置
-    const waistY = startY + this.design.waistHeight * this.scale
-    const waistStrapLength = this.design.waistStrap * this.scale
-    
-    // 计算围裙边界
-    const startX = 30 * this.scale
+    // 计算围裙的基本参数
+    const apronStartX = 30 * this.scale
     const bottomWidth = this.design.bottomWidth * this.scale
-    const leftWaistX = startX
-    const rightWaistX = startX + bottomWidth
+    const waistY = startY + this.design.waistHeight * this.scale
     
-    // 腰部孔洞位置（在腰线上，距离边缘一定距离）
-    const holeOffset = 15 * this.scale
-    const leftHoleX = leftWaistX + holeOffset
-    const rightHoleX = rightWaistX - holeOffset
+    // 气眼参数
+    const eyeletRadius = 3 * this.scale
+    const edgeOffset = eyeletRadius * 0.7
+    const leftWaistEndX = apronStartX
+    const rightWaistEndX = apronStartX + bottomWidth
+    const leftEyeletX = leftWaistEndX + edgeOffset
+    const rightEyeletX = rightWaistEndX - edgeOffset
+    const eyeletY = waistY + eyeletRadius * 0.3
     
-    // 绘制连续的带子路径
-    // 左侧：从围裙左上角到颈部中心
-    this.svg.line(topStartX, startY, centerX - 10 * this.scale, neckStrapTopY)
+    // 向上延伸的高度
+    const upwardExtension = neckStrapHeight * 0.8
+    const upwardY = startY - upwardExtension
+    
+    // 计算围裙顶部中心点两侧的目标位置
+    const topCenterX = topStartX + topWidth / 2
+    const sideOffset = topWidth * 0.15 // 距离中心点15%的偏移
+    const leftTargetX = topCenterX - sideOffset
+    const rightTargetX = topCenterX + sideOffset
+    
+    // 绘制左侧带子：从左上角垂直向上，然后向下到右目标点
+    // 第一段：垂直向上
+    this.svg.line(leftConnectionX, connectionY, leftConnectionX, upwardY)
+      .stroke('#8B4513')
+      .attr('stroke-width', 8)
+      .attr('stroke-linecap', 'round')
+    
+    // 第二段：从垂直端点向下到右目标点
+    this.svg.line(leftConnectionX, upwardY, rightTargetX, connectionY)
+      .stroke('#8B4513')
+      .attr('stroke-width', 8)
+      .attr('stroke-linecap', 'round')
+    
+    // 绘制右侧带子：从右上角垂直向上，然后向下到左目标点
+    // 第一段：垂直向上
+    this.svg.line(rightConnectionX, connectionY, rightConnectionX, upwardY)
+      .stroke('#8B4513')
+      .attr('stroke-width', 8)
+      .attr('stroke-linecap', 'round')
+    
+    // 第二段：从垂直端点向下到左目标点
+    this.svg.line(rightConnectionX, upwardY, leftTargetX, connectionY)
+      .stroke('#8B4513')
+      .attr('stroke-width', 8)
+      .attr('stroke-linecap', 'round')
+    
+    // 计算下垂带子位置
+    const strapOffset = 8 * this.scale
+    const leftStrapX = apronStartX - strapOffset
+    const rightStrapX = apronStartX + bottomWidth + strapOffset
+    const dropLength = this.design.waistStrap * this.scale * 0.8
+    
+    // 绘制从气眼延伸出的下垂带子（这些是直接从气眼出来的，不是颈带的延续）
+    // 左侧下垂带子
+    this.svg.line(leftEyeletX, eyeletY, leftStrapX, eyeletY)
       .stroke('#8B4513')
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
     
-    // 右侧：从围裙右上角到颈部中心
-    this.svg.line(topStartX + topWidth, startY, centerX + 10 * this.scale, neckStrapTopY)
+    this.svg.line(leftStrapX, eyeletY, leftStrapX, eyeletY + dropLength)
       .stroke('#8B4513')
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
     
-    // 颈部连接段
-    this.svg.line(centerX - 10 * this.scale, neckStrapTopY, centerX + 10 * this.scale, neckStrapTopY)
+    // 右侧下垂带子
+    this.svg.line(rightEyeletX, eyeletY, rightStrapX, eyeletY)
       .stroke('#8B4513')
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
     
-    // 连续带子：从左上角穿过左侧腰部孔洞到左腰带
-    this.svg.line(topStartX, startY, leftHoleX, waistY)
-      .stroke('#8B4513')
-      .attr('stroke-width', 4)
-      .attr('stroke-linecap', 'round')
-      .attr('stroke-dasharray', '5,3') // 虚线表示穿过围裙内部
-    
-    // 左腰带段
-    this.svg.line(leftHoleX, waistY, leftWaistX - waistStrapLength, waistY)
+    this.svg.line(rightStrapX, eyeletY, rightStrapX, eyeletY + dropLength)
       .stroke('#8B4513')
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
     
-    // 连续带子：从右上角穿过右侧腰部孔洞到右腰带
-    this.svg.line(topStartX + topWidth, startY, rightHoleX, waistY)
-      .stroke('#8B4513')
-      .attr('stroke-width', 4)
-      .attr('stroke-linecap', 'round')
-      .attr('stroke-dasharray', '5,3') // 虚线表示穿过围裙内部
-    
-    // 右腰带段
-    this.svg.line(rightHoleX, waistY, rightWaistX + waistStrapLength, waistY)
-      .stroke('#8B4513')
-      .attr('stroke-width', 6)
-      .attr('stroke-linecap', 'round')
-    
-    // 绘制腰部孔洞
-    this.svg.circle(8 * this.scale)
-      .center(leftHoleX, waistY)
+    // 绘制气眼
+    this.svg.circle(eyeletRadius)
+      .center(leftEyeletX, eyeletY)
       .fill('none')
       .stroke('#333333')
-      .attr('stroke-width', 2)
+      .attr('stroke-width', 1.5)
     
-    this.svg.circle(8 * this.scale)
-      .center(rightHoleX, waistY)
+    this.svg.circle(eyeletRadius)
+      .center(rightEyeletX, eyeletY)
       .fill('none')
       .stroke('#333333')
-      .attr('stroke-width', 2)
-    
-    // 添加孔洞标注
-    this.svg.text('孔洞')
-      .move(leftHoleX - 15 * this.scale, waistY - 20 * this.scale)
-      .font({ size: 8, anchor: 'middle', family: 'Arial, sans-serif' })
-      .fill('#666666')
-    
-    this.svg.text('孔洞')
-      .move(rightHoleX + 15 * this.scale, waistY - 20 * this.scale)
-      .font({ size: 8, anchor: 'middle', family: 'Arial, sans-serif' })
-      .fill('#666666')
+      .attr('stroke-width', 1.5)
   }
 
   private drawAdjustableNeckStrap(topStartX: number, startY: number, topWidth: number, neckStrapLength: number, neckStrapHeight: number) {
@@ -1389,14 +1370,6 @@ export class ApronSVGGenerator {
     
     const topStartX = startX + (bottomWidth - topWidth) / 2
 
-    // 上沿宽度标注
-    this.addDimensionLine(
-      topStartX, startY - 10 * this.scale,
-      topStartX + topWidth, startY - 10 * this.scale,
-      `上沿: ${formatDimension(this.design.topWidth)}`,
-      'horizontal'
-    )
-
     // 下沿宽度标注
     this.addDimensionLine(
       startX, startY + totalHeight + 10 * this.scale,
@@ -1410,14 +1383,6 @@ export class ApronSVGGenerator {
       startX - 15 * this.scale, startY,
       startX - 15 * this.scale, startY + totalHeight,
       `总高: ${formatDimension(this.design.totalHeight)}`,
-      'vertical'
-    )
-
-    // 腰部高度标注
-    this.addDimensionLine(
-      startX + bottomWidth + 10 * this.scale, startY,
-      startX + bottomWidth + 10 * this.scale, startY + waistHeight,
-      `腰部: ${formatDimension(this.design.waistHeight)}`,
       'vertical'
     )
 
