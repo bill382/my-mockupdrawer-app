@@ -107,6 +107,18 @@ export interface ApronDesign {
   // 颜色规格
   colorConfig: SolidColorConfig | PatternConfig
   
+  // 颈带颜色配置
+  neckStrapColor: {
+    colorName: string
+    hexValue: string
+  }
+  
+  // 口袋颜色配置
+  pocketColor: {
+    colorName: string
+    hexValue: string
+  }
+  
   // 口袋配置
   pocketConfig: PocketConfig
   
@@ -122,6 +134,8 @@ interface ApronDesignStore {
   design: ApronDesign
   updateDesign: (updates: Partial<Omit<ApronDesign, 'waistHeight' | 'bottomHeight'>>) => void
   updateColorConfig: (colorConfig: SolidColorConfig | PatternConfig) => void
+  updateNeckStrapColor: (neckStrapColor: { colorName: string; hexValue: string }) => void
+  updatePocketColor: (pocketColor: { colorName: string; hexValue: string }) => void
   updatePocketConfig: (pocketConfig: PocketConfig) => void
   resetDesign: () => void
   // 计算方法
@@ -141,6 +155,14 @@ const defaultDesign: ApronDesign = {
     type: 'solid',
     colorName: '珊瑚红',
     hexValue: '#FF6B6B'
+  },
+  neckStrapColor: {
+    colorName: '深棕色',
+    hexValue: '#8B4513'
+  },
+  pocketColor: {
+    colorName: '浅灰色',
+    hexValue: '#D3D3D3'
   },
   pocketConfig: {
     mode: 'none'
@@ -176,6 +198,16 @@ export const useApronDesignStore = create<ApronDesignStore>()(
           design: { ...state.design, colorConfig }
         })),
         
+      updateNeckStrapColor: (neckStrapColor) =>
+        set((state) => ({
+          design: { ...state.design, neckStrapColor }
+        })),
+        
+      updatePocketColor: (pocketColor) =>
+        set((state) => ({
+          design: { ...state.design, pocketColor }
+        })),
+        
       updatePocketConfig: (pocketConfig) =>
         set((state) => ({
           design: { ...state.design, pocketConfig }
@@ -201,7 +233,7 @@ export const useApronDesignStore = create<ApronDesignStore>()(
         set({ design: defaultDesign, tempFile: null })
     }),
     {
-      name: 'apron-design-storage-v6', // 更改存储键名以清除旧数据，支持口袋配置
+      name: 'apron-design-storage-v7', // 更改存储键名以清除旧数据，支持颜色配置
       partialize: (state) => ({
         design: {
           ...state.design,

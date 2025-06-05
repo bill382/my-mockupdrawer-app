@@ -33,10 +33,13 @@ import { toast } from 'sonner'
  * @description 这只是个示例页面，你可以随意修改这个页面或进行全面重构
  */
 export default function ApronDesignGenerator() {
-	const { design, updateDesign, updateColorConfig, updatePocketConfig, resetDesign, tempFile, setTempFile } = useApronDesignStore()
+	const { design, updateDesign, updateColorConfig, updateNeckStrapColor, updatePocketColor, updatePocketConfig, resetDesign, tempFile, setTempFile } = useApronDesignStore()
 	const [svgContent, setSvgContent] = useState('')
 	const [isExporting, setIsExporting] = useState(false)
-	const [colorType, setColorType] = useState<'solid' | 'pattern'>(design.colorConfig.type)
+	const [colorType, setColorType] = useState<'solid' | 'pattern'>('solid')
+
+	// 添加加载状态检查，确保设计数据完全加载
+	const [isLoaded, setIsLoaded] = useState(false)
 
 	// 生成SVG预览
 	const generatePreview = async () => {
@@ -55,8 +58,30 @@ export default function ApronDesignGenerator() {
 	}
 
 	useEffect(() => {
-		generatePreview().then(setSvgContent)
-	}, [design, tempFile])
+		// 检查设计数据是否完全加载
+		if (design && design.colorConfig && design.neckStrapColor && design.pocketColor) {
+			setIsLoaded(true)
+			setColorType(design.colorConfig.type || 'solid')
+		}
+	}, [design])
+
+	useEffect(() => {
+		if (isLoaded && design) {
+			generatePreview().then(setSvgContent)
+		}
+	}, [design, tempFile, isLoaded])
+
+	// 如果数据还没加载完成，显示加载界面
+	if (!isLoaded || !design || !design.colorConfig || !design.neckStrapColor || !design.pocketColor) {
+		return (
+			<div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
+				<div className="text-center">
+					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+					<p className="text-gray-600">正在加载围裙设计器...</p>
+				</div>
+			</div>
+		)
+	}
 
 	// 处理纯色配置更新
 	const handleSolidColorUpdate = (updates: Partial<SolidColorConfig>) => {
@@ -247,6 +272,22 @@ export default function ApronDesignGenerator() {
 				multiplePockets: { ...design.pocketConfig.multiplePockets, ...updates }
 			})
 		}
+	}
+
+	// 处理颈带颜色更新
+	const handleNeckStrapColorUpdate = (updates: Partial<SolidColorConfig>) => {
+		updateNeckStrapColor({
+			...design.neckStrapColor,
+			...updates
+		})
+	}
+
+	// 处理口袋颜色更新
+	const handlePocketColorUpdate = (updates: Partial<SolidColorConfig>) => {
+		updatePocketColor({
+			...design.pocketColor,
+			...updates
+		})
 	}
 
 	return (
@@ -459,16 +500,6 @@ export default function ApronDesignGenerator() {
 										</div>
 										
 										<div>
-											<Label htmlFor="pantoneCode">潘通色号 (可选)</Label>
-											<Input
-												id="pantoneCode"
-												value={design.colorConfig.type === 'solid' ? design.colorConfig.pantoneCode || '' : ''}
-												onChange={(e) => handleSolidColorUpdate({ pantoneCode: e.target.value })}
-												placeholder="例如：PANTONE 18-1664 TPX"
-											/>
-										</div>
-										
-										<div>
 											<Label htmlFor="hexValue">预览颜色</Label>
 											<div className="flex gap-2">
 												<Input
@@ -613,6 +644,80 @@ export default function ApronDesignGenerator() {
 										)}
 									</TabsContent>
 								</Tabs>
+
+								<Separator className="my-4" />
+
+								{/* 颈带颜色配置 */}
+								<div className="space-y-4">
+									<div className="flex items-center gap-2 mb-2">
+										<Palette className="h-4 w-4 text-purple-600" />
+										<span className="text-sm font-medium text-purple-900">颈带颜色配置</span>
+									</div>
+									<div>
+										<Label htmlFor="neckStrapColorName">颜色名称</Label>
+										<Input
+											id="neckStrapColorName"
+											value={design.neckStrapColor.colorName}
+											onChange={(e) => handleNeckStrapColorUpdate({ colorName: e.target.value })}
+											placeholder="例如：深棕色、浅灰色"
+										/>
+									</div>
+									<div>
+										<Label htmlFor="neckStrapHexValue">预览颜色</Label>
+										<div className="flex gap-2">
+											<Input
+												id="neckStrapHexValue"
+												type="color"
+												value={design.neckStrapColor.hexValue}
+												onChange={(e) => handleNeckStrapColorUpdate({ hexValue: e.target.value })}
+												className="w-16 h-10 p-1"
+											/>
+											<Input
+												value={design.neckStrapColor.hexValue}
+												onChange={(e) => handleNeckStrapColorUpdate({ hexValue: e.target.value })}
+												placeholder="#8B4513"
+												className="flex-1"
+											/>
+										</div>
+									</div>
+								</div>
+
+								<Separator className="my-4" />
+
+								{/* 口袋颜色配置 */}
+								<div className="space-y-4">
+									<div className="flex items-center gap-2 mb-2">
+										<Palette className="h-4 w-4 text-green-600" />
+										<span className="text-sm font-medium text-green-900">口袋颜色配置</span>
+									</div>
+									<div>
+										<Label htmlFor="pocketColorName">颜色名称</Label>
+										<Input
+											id="pocketColorName"
+											value={design.pocketColor.colorName}
+											onChange={(e) => handlePocketColorUpdate({ colorName: e.target.value })}
+											placeholder="例如：深棕色、浅灰色"
+										/>
+									</div>
+									<div>
+										<Label htmlFor="pocketHexValue">预览颜色</Label>
+										<div className="flex gap-2">
+											<Input
+												id="pocketHexValue"
+												type="color"
+												value={design.pocketColor.hexValue}
+												onChange={(e) => handlePocketColorUpdate({ hexValue: e.target.value })}
+												className="w-16 h-10 p-1"
+											/>
+											<Input
+												value={design.pocketColor.hexValue}
+												onChange={(e) => handlePocketColorUpdate({ hexValue: e.target.value })}
+												placeholder="#D3D3D3"
+												className="flex-1"
+											/>
+										</div>
+									</div>
+								</div>
 							</CardContent>
 						</Card>
 

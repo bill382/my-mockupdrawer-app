@@ -21,6 +21,16 @@ export class ApronSVGGenerator {
     this.tempFile = tempFile
   }
 
+  // 获取安全的颈带颜色
+  private getNeckStrapColor(): string {
+    return this.design.neckStrapColor?.hexValue || '#8B4513'
+  }
+
+  // 获取安全的口袋颜色
+  private getPocketColor(): string {
+    return this.design.pocketColor?.hexValue || '#D3D3D3'
+  }
+
   async generate(): Promise<string> {
     // 计算SVG画布尺寸（包含标注空间）
     const maxWidth = Math.max(this.design.topWidth, this.design.bottomWidth)
@@ -984,14 +994,14 @@ export class ApronSVGGenerator {
       // 左腰带
       this.svg.line(leftWaistX, waistY, 
                     leftWaistX - waistStrapLength, waistY)
-        .stroke('#8B4513')
+        .stroke(this.getNeckStrapColor())
         .attr('stroke-width', 6)
         .attr('stroke-linecap', 'round')
       
       // 右腰带
       this.svg.line(rightWaistX, waistY, 
                     rightWaistX + waistStrapLength, waistY)
-        .stroke('#8B4513')
+        .stroke(this.getNeckStrapColor())
         .attr('stroke-width', 6)
         .attr('stroke-linecap', 'round')
     }
@@ -1044,7 +1054,7 @@ export class ApronSVGGenerator {
     
     this.svg.path(neckStrapPath)
       .fill('none')
-      .stroke('#8B4513')
+      .stroke(this.getNeckStrapColor())
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
       .attr('stroke-linejoin', 'round')
@@ -1083,26 +1093,26 @@ export class ApronSVGGenerator {
     // 绘制左侧带子：从左上角垂直向上，然后向下到右目标点
     // 第一段：垂直向上
     this.svg.line(leftConnectionX, connectionY, leftConnectionX, upwardY)
-      .stroke('#8B4513')
+      .stroke(this.getNeckStrapColor())
       .attr('stroke-width', 8)
       .attr('stroke-linecap', 'round')
     
     // 第二段：从垂直端点向下到右目标点
     this.svg.line(leftConnectionX, upwardY, rightTargetX, connectionY)
-      .stroke('#8B4513')
+      .stroke(this.getNeckStrapColor())
       .attr('stroke-width', 8)
       .attr('stroke-linecap', 'round')
     
     // 绘制右侧带子：从右上角垂直向上，然后向下到左目标点
     // 第一段：垂直向上
     this.svg.line(rightConnectionX, connectionY, rightConnectionX, upwardY)
-      .stroke('#8B4513')
+      .stroke(this.getNeckStrapColor())
       .attr('stroke-width', 8)
       .attr('stroke-linecap', 'round')
     
     // 第二段：从垂直端点向下到左目标点
     this.svg.line(rightConnectionX, upwardY, leftTargetX, connectionY)
-      .stroke('#8B4513')
+      .stroke(this.getNeckStrapColor())
       .attr('stroke-width', 8)
       .attr('stroke-linecap', 'round')
     
@@ -1115,23 +1125,23 @@ export class ApronSVGGenerator {
     // 绘制从气眼延伸出的下垂带子（这些是直接从气眼出来的，不是颈带的延续）
     // 左侧下垂带子
     this.svg.line(leftEyeletX, eyeletY, leftStrapX, eyeletY)
-      .stroke('#8B4513')
+      .stroke(this.getNeckStrapColor())
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
     
     this.svg.line(leftStrapX, eyeletY, leftStrapX, eyeletY + dropLength)
-      .stroke('#8B4513')
+      .stroke(this.getNeckStrapColor())
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
     
     // 右侧下垂带子
     this.svg.line(rightEyeletX, eyeletY, rightStrapX, eyeletY)
-      .stroke('#8B4513')
+      .stroke(this.getNeckStrapColor())
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
     
     this.svg.line(rightStrapX, eyeletY, rightStrapX, eyeletY + dropLength)
-      .stroke('#8B4513')
+      .stroke(this.getNeckStrapColor())
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
     
@@ -1158,13 +1168,13 @@ export class ApronSVGGenerator {
     
     // 左侧带子到扣环
     this.svg.line(topStartX, startY, centerX - 15 * this.scale, neckStrapTopY)
-      .stroke('#8B4513')
+      .stroke(this.getNeckStrapColor())
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
     
     // 右侧带子到扣环
     this.svg.line(topStartX + topWidth, startY, centerX + 15 * this.scale, neckStrapTopY)
-      .stroke('#8B4513')
+      .stroke(this.getNeckStrapColor())
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
     
@@ -1190,34 +1200,34 @@ export class ApronSVGGenerator {
     
     // 左侧带子
     this.svg.line(topStartX, startY, leftNeckX, neckStrapTopY)
-      .stroke('#8B4513')
+      .stroke(this.getNeckStrapColor())
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
     
     // 右侧带子
     this.svg.line(topStartX + topWidth, startY, rightNeckX, neckStrapTopY)
-      .stroke('#8B4513')
+      .stroke(this.getNeckStrapColor())
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
     
     // 左侧带子末端（系带效果）
     this.svg.circle(4 * this.scale)
       .center(leftNeckX, neckStrapTopY)
-      .fill('#8B4513')
+      .fill(this.getNeckStrapColor())
     
     // 右侧带子末端（系带效果）
     this.svg.circle(4 * this.scale)
       .center(rightNeckX, neckStrapTopY)
-      .fill('#8B4513')
+      .fill(this.getNeckStrapColor())
     
     // 系带的飘带效果
     this.svg.line(leftNeckX, neckStrapTopY, leftNeckX - 8 * this.scale, neckStrapTopY + 12 * this.scale)
-      .stroke('#8B4513')
+      .stroke(this.getNeckStrapColor())
       .attr('stroke-width', 3)
       .attr('stroke-linecap', 'round')
     
     this.svg.line(rightNeckX, neckStrapTopY, rightNeckX + 8 * this.scale, neckStrapTopY + 12 * this.scale)
-      .stroke('#8B4513')
+      .stroke(this.getNeckStrapColor())
       .attr('stroke-width', 3)
       .attr('stroke-linecap', 'round')
   }
@@ -1263,10 +1273,10 @@ export class ApronSVGGenerator {
     // 绘制口袋轮廓
     this.svg.rect(pocketWidth, pocketHeight)
       .move(pocketX, pocketY)
-      .fill('none')
-      .stroke('#333333')
+      .fill(this.getPocketColor())
+      .stroke(this.getPocketColor())
       .attr('stroke-width', 1.5)
-      .attr('stroke-dasharray', '4,2')
+      .attr('opacity', 0.8)
     
     // 添加口袋标注
     this.svg.text(`口袋: ${config.width}×${config.height}CM`)
@@ -1294,19 +1304,19 @@ export class ApronSVGGenerator {
     const leftPocketX = startPocketX
     this.svg.rect(leftPocketWidth, leftPocketHeight)
       .move(leftPocketX, pocketY)
-      .fill('none')
-      .stroke('#333333')
+      .fill(this.getPocketColor())
+      .stroke(this.getPocketColor())
       .attr('stroke-width', 1.5)
-      .attr('stroke-dasharray', '4,2')
+      .attr('opacity', 0.8)
     
     // 绘制右口袋
     const rightPocketX = startPocketX + leftPocketWidth + spacing
     this.svg.rect(rightPocketWidth, rightPocketHeight)
       .move(rightPocketX, pocketY)
-      .fill('none')
-      .stroke('#333333')
+      .fill(this.getPocketColor())
+      .stroke(this.getPocketColor())
       .attr('stroke-width', 1.5)
-      .attr('stroke-dasharray', '4,2')
+      .attr('opacity', 0.8)
     
     // 添加口袋标注
     this.svg.text(`左口袋: ${config.leftPocket.width}×${config.leftPocket.height}CM`)
@@ -1345,15 +1355,15 @@ export class ApronSVGGenerator {
       
       this.svg.rect(singlePocketWidth, pocketHeight)
         .move(pocketX, pocketY)
-        .fill('none')
-        .stroke('#333333')
+        .fill(this.getPocketColor())
+        .stroke(this.getPocketColor())
         .attr('stroke-width', 1.5)
-        .attr('stroke-dasharray', '4,2')
+        .attr('opacity', 0.8)
       
       // 如果不是最后一个口袋，绘制分隔线
       if (i < pocketCount - 1) {
         this.svg.line(pocketX + singlePocketWidth, pocketY, pocketX + singlePocketWidth, pocketY + pocketHeight)
-          .stroke('#333333')
+          .stroke(this.getPocketColor())
           .attr('stroke-width', 1)
           .attr('stroke-dasharray', '2,2')
       }
