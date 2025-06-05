@@ -319,7 +319,7 @@ export default function ApronDesignGenerator() {
 									</div>
 									<div className="grid grid-cols-2 gap-4 text-sm">
 										<div>
-											<span className="text-gray-600">围裙腰部高度:</span>
+											<span className="text-gray-600">围裙上部高度:</span>
 											<span className="ml-2 font-medium">{design.waistHeight} CM</span>
 											<span className="text-xs text-gray-400 block">
 												({((design.waistHeight / design.totalHeight) * 100).toFixed(1)}%)
@@ -334,7 +334,7 @@ export default function ApronDesignGenerator() {
 										</div>
 									</div>
 									<p className="text-xs text-gray-500 mt-2">
-										* 腰部高度 = 整体高度 × 33%，下部高度 = 整体高度 - 腰部高度
+										* 上部高度 = 整体高度 × 33%，下部高度 = 整体高度 - 上部高度
 									</p>
 								</div>
 							</CardContent>

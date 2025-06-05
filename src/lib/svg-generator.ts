@@ -977,7 +977,7 @@ export class ApronSVGGenerator {
       const waistY = startY + this.design.waistHeight * this.scale
       const waistStrapLength = this.design.waistStrap * this.scale
       
-      // 腰带连接在围裙腰部和下部的分界线上（梯形底边的两端）
+      // 腰带连接在围裙上部和下部的分界线上（梯形底边的两端）
       const leftWaistX = startX
       const rightWaistX = startX + bottomWidth
       
@@ -1020,15 +1020,26 @@ export class ApronSVGGenerator {
   }
 
   private drawClassicNeckStrap(topStartX: number, startY: number, topWidth: number, neckStrapLength: number, neckStrapHeight: number) {
-    // 经典圆弧形颈带
-    const leftNeckX = topStartX - neckStrapLength / 6
-    const rightNeckX = topStartX + topWidth + neckStrapLength / 6
-    const neckStrapTopY = startY - neckStrapHeight
+    // 经典圆弧形颈带 - 垂直段直接用圆弧在顶部连接
+    const leftConnectionX = topStartX
+    const rightConnectionX = topStartX + topWidth
+    const connectionY = startY
     
+    // 垂直延伸段（延伸总高度的60%）
+    const verticalExtension = neckStrapHeight * 0.6
+    const verticalEndY = startY - verticalExtension
+    
+    // 计算圆弧参数 - 直接连接两个垂直段顶端
+    const arcCenterX = topStartX + topWidth / 2
+    const arcRadius = topWidth / 2 // 圆弧半径等于围裙顶部宽度的一半
+    const arcTopY = verticalEndY - arcRadius // 圆弧最高点
+    
+    // 绘制完整的颈带路径 - 使用简单的半圆弧连接
     const neckStrapPath = `
-      M ${topStartX} ${startY}
-      Q ${leftNeckX} ${neckStrapTopY} ${topStartX + topWidth / 2} ${neckStrapTopY - 5 * this.scale}
-      Q ${rightNeckX} ${neckStrapTopY} ${topStartX + topWidth} ${startY}
+      M ${leftConnectionX} ${connectionY}
+      L ${leftConnectionX} ${verticalEndY}
+      A ${arcRadius} ${arcRadius} 0 0 1 ${rightConnectionX} ${verticalEndY}
+      L ${rightConnectionX} ${connectionY}
     `
     
     this.svg.path(neckStrapPath)
@@ -1036,6 +1047,7 @@ export class ApronSVGGenerator {
       .stroke('#8B4513')
       .attr('stroke-width', 6)
       .attr('stroke-linecap', 'round')
+      .attr('stroke-linejoin', 'round')
   }
 
   private drawCrossNeckStrap(topStartX: number, startY: number, topWidth: number, neckStrapLength: number, neckStrapHeight: number) {

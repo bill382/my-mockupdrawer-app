@@ -55,8 +55,8 @@ export class ExportUtils {
 - 围裙整体高度: ${design.totalHeight}CM
 
 自动计算尺寸：
-- 围裙腰部高度: ${design.waistHeight}CM (整体高度 × 33%)
-- 围裙下部高度: ${design.bottomHeight}CM (整体高度 - 腰部高度)
+- 围裙上部高度: ${design.waistHeight}CM (整体高度 × 33%)
+- 围裙下部高度: ${design.bottomHeight}CM (整体高度 - 上部高度)
 
 绑带参数：
 - 颈带长度: ${design.neckStrap}CM
@@ -66,7 +66,7 @@ export class ExportUtils {
 ${getColorSpecification(design.colorConfig)}
 
 设计规范：
-- 围裙形状: 梯形(腰部) + 矩形(下摆)
+- 围裙形状: 梯形(上部) + 矩形(下摆)
 - 标注单位: CM/INCH双语显示
 - 尺寸精度: 小数点后1位
 - 符合工业标准设计稿要求
@@ -157,7 +157,7 @@ ${getColorSpecification(design.colorConfig)}
 尺寸规格：
 - 上沿×下沿×高度: ${design.topWidth}×${design.bottomWidth}×${design.totalHeight}CM
 - 英制单位: ${cmToInch(design.topWidth)}×${cmToInch(design.bottomWidth)}×${cmToInch(design.totalHeight)}INCH
-- 腰部高度: ${design.waistHeight}CM (${cmToInch(design.waistHeight)}INCH)
+- 上部高度: ${design.waistHeight}CM (${cmToInch(design.waistHeight)}INCH)
 - 下部高度: ${design.bottomHeight}CM (${cmToInch(design.bottomHeight)}INCH)
 
 绑带规格：

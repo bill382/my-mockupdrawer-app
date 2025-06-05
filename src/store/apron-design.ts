@@ -59,7 +59,7 @@ export const NECK_STRAP_STYLES: Record<NeckStrapStyle, NeckStrapConfig> = {
   cross: {
     style: 'cross',
     name: '交叉式',
-    description: '颈带和腰带为同一根带子，穿过腰部孔洞连接'
+    description: '颈带和腰带为同一根带子，穿过上部孔洞连接'
   },
   adjustable: {
     style: 'adjustable',
@@ -101,8 +101,8 @@ export interface ApronDesign {
   totalHeight: number // 围裙整体高度 (cm)
   
   // 计算得出的参数（自动计算）
-  waistHeight: number // 围裙腰部高度 = 整体高度 × 33%
-  bottomHeight: number // 围裙下部高度 = 整体高度 - 腰部高度
+  waistHeight: number // 围裙上部高度 = 整体高度 × 33%
+  bottomHeight: number // 围裙下部高度 = 整体高度 - 上部高度
   
   // 颜色规格
   colorConfig: SolidColorConfig | PatternConfig
