@@ -93,6 +93,18 @@ export interface PatternConfig {
   customPositionY?: number // 垂直位置百分比 (0-100)
 }
 
+// LOGO印刷配置
+export interface LogoConfig {
+  enabled: boolean // 是否启用LOGO印刷
+  file: File | null // LOGO矢量文件
+  logoName: string // LOGO名称
+  width: number // LOGO宽度 (厘米)
+  aspectRatio: number // 宽高比 (宽度/高度)，默认1为正方形
+  offsetX: number // 水平偏移距离 (厘米，从左边算起)
+  offsetY: number // 垂直偏移距离 (厘米，从顶部算起)
+  opacity: number // 透明度 (0-100)
+}
+
 // 围裙设计参数（按照指南规范）
 export interface ApronDesign {
   // 基础尺寸参数
@@ -128,6 +140,9 @@ export interface ApronDesign {
   
   // 颈带款式
   neckStrapStyle: NeckStrapStyle
+  
+  // LOGO印刷配置
+  logoConfig: LogoConfig
 }
 
 interface ApronDesignStore {
@@ -137,12 +152,16 @@ interface ApronDesignStore {
   updateNeckStrapColor: (neckStrapColor: { colorName: string; hexValue: string }) => void
   updatePocketColor: (pocketColor: { colorName: string; hexValue: string }) => void
   updatePocketConfig: (pocketConfig: PocketConfig) => void
+  updateLogoConfig: (logoConfig: LogoConfig) => void
   resetDesign: () => void
   // 计算方法
   calculateDimensions: () => void
   // 临时存储文件（不持久化）
   tempFile: File | null
   setTempFile: (file: File | null) => void
+  // LOGO临时文件存储
+  logoTempFile: File | null
+  setLogoTempFile: (file: File | null) => void
 }
 
 const defaultDesign: ApronDesign = {
@@ -169,7 +188,17 @@ const defaultDesign: ApronDesign = {
   },
   neckStrap: 50,
   waistStrap: 80,
-  neckStrapStyle: 'classic'
+  neckStrapStyle: 'classic',
+  logoConfig: {
+    enabled: false,
+    file: null,
+    logoName: '自定义LOGO',
+    width: 8, // 默认8厘米宽度
+    aspectRatio: 1, // 默认正方形
+    offsetX: 15, // 距离左边15厘米
+    offsetY: 12, // 距离顶部12厘米
+    opacity: 100 // 完全不透明
+  }
 }
 
 export const useApronDesignStore = create<ApronDesignStore>()(
@@ -177,6 +206,7 @@ export const useApronDesignStore = create<ApronDesignStore>()(
     (set, get) => ({
       design: defaultDesign,
       tempFile: null,
+      logoTempFile: null,
       
       updateDesign: (updates) =>
         set((state) => {
@@ -208,12 +238,17 @@ export const useApronDesignStore = create<ApronDesignStore>()(
           design: { ...state.design, pocketColor }
         })),
         
-      updatePocketConfig: (pocketConfig) =>
+              updatePocketConfig: (pocketConfig) =>
         set((state) => ({
           design: { ...state.design, pocketConfig }
         })),
         
-      calculateDimensions: () =>
+        updateLogoConfig: (logoConfig) =>
+        set((state) => ({
+          design: { ...state.design, logoConfig }
+        })),
+        
+        calculateDimensions: () =>
         set((state) => {
           const newWaistHeight = Math.round(state.design.totalHeight * 0.33 * 10) / 10
           const newBottomHeight = Math.round((state.design.totalHeight - newWaistHeight) * 10) / 10
@@ -226,14 +261,17 @@ export const useApronDesignStore = create<ApronDesignStore>()(
           }
         }),
         
-      setTempFile: (file) =>
+              setTempFile: (file) =>
         set({ tempFile: file }),
         
-      resetDesign: () =>
-        set({ design: defaultDesign, tempFile: null })
+        setLogoTempFile: (file) =>
+        set({ logoTempFile: file }),
+        
+        resetDesign: () =>
+        set({ design: defaultDesign, tempFile: null, logoTempFile: null })
     }),
     {
-      name: 'apron-design-storage-v7', // 更改存储键名以清除旧数据，支持颜色配置
+      name: 'apron-design-storage-v10', // 更改存储键名以清除旧数据，支持LOGO宽高比
       partialize: (state) => ({
         design: {
           ...state.design,
@@ -243,9 +281,13 @@ export const useApronDesignStore = create<ApronDesignStore>()(
                 ...state.design.colorConfig,
                 file: null // 不保存文件对象
               }
-            : state.design.colorConfig
+            : state.design.colorConfig,
+          logoConfig: {
+            ...state.design.logoConfig,
+            file: null // 不保存LOGO文件对象
+          }
         }
-        // tempFile不会被持久化
+        // tempFile和logoTempFile不会被持久化
       })
     }
   )

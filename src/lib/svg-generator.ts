@@ -1,5 +1,5 @@
 import { SVG } from '@svgdotjs/svg.js'
-import type { ApronDesign, SolidColorConfig, PatternConfig, NeckStrapStyle, PocketConfig } from '@/store/apron-design'
+import type { ApronDesign, SolidColorConfig, PatternConfig, NeckStrapStyle, PocketConfig, LogoConfig } from '@/store/apron-design'
 
 // 单位转换：CM 转 INCH
 const cmToInch = (cm: number): number => cm * 0.393701
@@ -14,11 +14,13 @@ export class ApronSVGGenerator {
   private svg: any
   private design: ApronDesign
   private tempFile: File | null
-  private scale: number = 4 // 缩放比例，1cm = 4px
+  private logoTempFile: File | null
+  private scale = 4 // 缩放比例，1cm = 4px
 
-  constructor(design: ApronDesign, tempFile: File | null = null) {
+  constructor(design: ApronDesign, tempFile: File | null = null, logoTempFile: File | null = null) {
     this.design = design
     this.tempFile = tempFile
+    this.logoTempFile = logoTempFile
   }
 
   // 获取安全的颈带颜色
@@ -58,6 +60,9 @@ export class ApronSVGGenerator {
     
     // 绘制口袋（参考样本图）
     this.drawPocket()
+    
+    // 绘制LOGO印刷
+    await this.drawLogo()
     
     // 添加尺寸标注
     this.addDimensions()
@@ -1510,5 +1515,296 @@ export class ApronSVGGenerator {
       .move(canvasWidth / 2, 35)
       .font({ size: 12, anchor: 'middle', family: 'Arial, sans-serif' })
       .fill('#666666')
+  }
+
+  private async drawLogo() {
+    const logoConfig = this.design.logoConfig
+    
+    // 如果LOGO功能未启用，直接返回
+    if (!logoConfig.enabled) {
+      return
+    }
+
+    const startX = 30 * this.scale
+    const startY = 40 * this.scale
+    const bottomWidth = this.design.bottomWidth * this.scale
+    const totalHeight = (this.design.waistHeight + this.design.bottomHeight) * this.scale
+    
+    // 优先使用logoTempFile，如果没有则使用logoConfig中的file
+    const fileToUse = this.logoTempFile || logoConfig.file
+    
+    console.log('绘制LOGO:', { 
+      enabled: logoConfig.enabled,
+      hasFile: !!fileToUse, 
+      hasLogoTempFile: !!this.logoTempFile,
+      hasConfigFile: !!logoConfig.file,
+      logoName: logoConfig.logoName,
+      width: logoConfig.width,
+      aspectRatio: logoConfig.aspectRatio,
+      offsetX: logoConfig.offsetX,
+      offsetY: logoConfig.offsetY,
+      opacity: logoConfig.opacity
+    })
+    
+    if (fileToUse) {
+      // 如果有文件，创建LOGO图案
+      await this.createLogoFromFile(
+        fileToUse, 
+        logoConfig,
+        startX,
+        startY,
+        bottomWidth, 
+        totalHeight
+      )
+    } else {
+      // 没有文件时显示占位符
+      this.addLogoPlaceholder(
+        startX, 
+        startY, 
+        bottomWidth, 
+        totalHeight, 
+        logoConfig
+      )
+    }
+  }
+
+  private async createLogoFromFile(
+    file: File, 
+    logoConfig: LogoConfig,
+    areaX: number,
+    areaY: number,
+    areaWidth: number,
+    areaHeight: number
+  ) {
+    try {
+      const fileType = file.type.toLowerCase()
+      console.log('处理LOGO文件:', { fileName: file.name, fileType, fileSize: file.size })
+      
+      if (fileType.includes('svg')) {
+        // 处理SVG文件
+        const svgContent = await this.readFileAsText(file)
+        await this.createSVGLogo(svgContent, logoConfig, areaX, areaY, areaWidth, areaHeight)
+      } else if (fileType.includes('pdf')) {
+        // 处理PDF文件
+        const pdfImageUrl = await this.convertPDFToImage(file)
+        if (pdfImageUrl) {
+          this.createImageLogo(pdfImageUrl, logoConfig, areaX, areaY, areaWidth, areaHeight)
+        } else {
+          console.log('PDF转换失败，显示占位符')
+          this.addLogoPlaceholder(areaX, areaY, areaWidth, areaHeight, logoConfig)
+        }
+      } else if (fileType.includes('image')) {
+        // 处理图片文件
+        const imageUrl = await this.readFileAsDataURL(file)
+        this.createImageLogo(imageUrl, logoConfig, areaX, areaY, areaWidth, areaHeight)
+      } else {
+        // 不支持的文件类型，显示占位符
+        console.log('不支持的LOGO文件类型:', fileType)
+        this.addLogoPlaceholder(areaX, areaY, areaWidth, areaHeight, logoConfig)
+      }
+    } catch (error) {
+      console.error('LOGO文件处理失败:', error)
+      this.addLogoPlaceholder(areaX, areaY, areaWidth, areaHeight, logoConfig)
+    }
+  }
+
+    private async createSVGLogo(
+    svgContent: string, 
+    logoConfig: LogoConfig,
+    areaX: number,
+    areaY: number,
+    areaWidth: number,
+    areaHeight: number
+  ) {
+    try {
+      // 使用厘米单位和宽高比计算LOGO的实际尺寸和位置
+      const logoWidth = logoConfig.width * this.scale // 宽度（厘米转像素）
+      const logoHeight = (logoConfig.width / logoConfig.aspectRatio) * this.scale // 高度（根据宽高比计算）
+      const logoX = areaX + (logoConfig.offsetX * this.scale) // X位置（厘米转像素）
+      const logoY = areaY + (logoConfig.offsetY * this.scale) // Y位置（厘米转像素）
+      
+      // 创建一个组来包含LOGO
+      const logoGroup = this.svg.group()
+        .move(logoX, logoY)
+        .opacity(logoConfig.opacity / 100)
+      
+      // 解析SVG内容并添加到组中
+      const parser = new DOMParser()
+      const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml')
+      const svgElement = svgDoc.documentElement
+      
+      if (svgElement && svgElement.tagName === 'svg') {
+        // 获取SVG的viewBox或width/height
+        const viewBox = svgElement.getAttribute('viewBox')
+        let svgWidth = logoWidth
+        let svgHeight = logoHeight
+        
+        if (viewBox) {
+          const viewBoxParts = viewBox.split(' ').map(Number)
+          if (viewBoxParts.length >= 4) {
+            const vbWidth = viewBoxParts[2]
+            const vbHeight = viewBoxParts[3]
+            if (vbWidth && vbHeight) {
+              const aspectRatio = vbWidth / vbHeight
+              if (aspectRatio > 1) {
+                svgHeight = logoWidth / aspectRatio
+              } else {
+                svgWidth = logoHeight * aspectRatio
+              }
+            }
+          }
+        }
+        
+        // 创建SVG元素，使用实际的宽高
+        const logoSvg = logoGroup.nested()
+          .size(logoWidth, logoHeight)
+          .viewbox(`0 0 ${logoWidth} ${logoHeight}`)
+        
+        // 复制SVG内容
+        logoSvg.svg(svgElement.innerHTML)
+        
+        // 添加LOGO尺寸和位置标注
+        this.addLogoAnnotations(logoX, logoY, logoWidth, logoHeight, logoConfig)
+        
+      } else {
+        throw new Error('无效的SVG内容')
+      }
+    } catch (error) {
+      console.error('SVG LOGO创建失败:', error)
+      this.addLogoPlaceholder(areaX, areaY, areaWidth, areaHeight, logoConfig)
+    }
+  }
+
+  private createImageLogo(
+    imageUrl: string, 
+    logoConfig: LogoConfig,
+    areaX: number,
+    areaY: number,
+    areaWidth: number,
+    areaHeight: number
+  ) {
+    try {
+      // 使用厘米单位和宽高比计算LOGO的实际尺寸和位置
+      const logoWidth = logoConfig.width * this.scale // 宽度（厘米转像素）
+      const logoHeight = (logoConfig.width / logoConfig.aspectRatio) * this.scale // 高度（根据宽高比计算）
+      const logoX = areaX + (logoConfig.offsetX * this.scale) // X位置（厘米转像素）
+      const logoY = areaY + (logoConfig.offsetY * this.scale) // Y位置（厘米转像素）
+      
+      // 创建图片元素
+      this.svg.image(imageUrl)
+        .size(logoWidth, logoHeight)
+        .move(logoX, logoY)
+        .opacity(logoConfig.opacity / 100)
+      
+      // 添加LOGO尺寸和位置标注
+      this.addLogoAnnotations(logoX, logoY, logoWidth, logoHeight, logoConfig)
+    } catch (error) {
+      console.error('图片LOGO创建失败:', error)
+      this.addLogoPlaceholder(areaX, areaY, areaWidth, areaHeight, logoConfig)
+    }
+  }
+
+  private addLogoPlaceholder(
+    areaX: number,
+    areaY: number,
+    areaWidth: number,
+    areaHeight: number,
+    logoConfig: LogoConfig
+  ) {
+    // 使用厘米单位和宽高比计算LOGO的实际尺寸和位置
+    const logoWidth = logoConfig.width * this.scale // 宽度（厘米转像素）
+    const logoHeight = (logoConfig.width / logoConfig.aspectRatio) * this.scale // 高度（根据宽高比计算）
+    const logoX = areaX + (logoConfig.offsetX * this.scale) // X位置（厘米转像素）
+    const logoY = areaY + (logoConfig.offsetY * this.scale) // Y位置（厘米转像素）
+    
+    // 创建占位符框
+    const placeholderGroup = this.svg.group()
+      .move(logoX, logoY)
+      .opacity(logoConfig.opacity / 100)
+    
+    // 虚线边框
+    placeholderGroup.rect(logoWidth, logoHeight)
+      .fill('none')
+      .stroke('#999999')
+      .attr('stroke-dasharray', '5,5')
+      .attr('stroke-width', 2)
+    
+    // LOGO文字
+    placeholderGroup.text(logoConfig.logoName || 'LOGO位置')
+      .font({ family: 'Arial, sans-serif', size: Math.max(12, logoWidth * 0.1), weight: 'bold' })
+      .fill('#666666')
+      .center(logoWidth / 2, logoHeight / 2)
+    
+    // 添加LOGO尺寸和位置标注
+    this.addLogoAnnotations(logoX, logoY, logoWidth, logoHeight, logoConfig)
+  }
+
+  /**
+   * 添加LOGO尺寸和位置标注
+   */
+  private addLogoAnnotations(logoX: number, logoY: number, logoWidth: number, logoHeight: number, logoConfig: LogoConfig) {
+    // 创建标注组
+    const annotationGroup = this.svg.group()
+    
+    // LOGO宽度标注线段（在LOGO下方）
+    const widthLineY = logoY + logoHeight + 1
+    const widthLineStartX = logoX
+    const widthLineEndX = logoX + logoWidth
+    
+    // 绘制宽度标注线段
+    annotationGroup.line(widthLineStartX, widthLineY, widthLineEndX, widthLineY)
+      .stroke({ color: '#0066cc', width: 1 })
+    
+    // 左侧箭头
+    annotationGroup.polygon([
+      [widthLineStartX, widthLineY],
+      [widthLineStartX + 3, widthLineY - 2],
+      [widthLineStartX + 3, widthLineY + 2]
+    ]).fill('#0066cc')
+    
+    // 右侧箭头
+    annotationGroup.polygon([
+      [widthLineEndX, widthLineY],
+      [widthLineEndX - 3, widthLineY - 2],
+      [widthLineEndX - 3, widthLineY + 2]
+    ]).fill('#0066cc')
+    
+    // 宽度数值（在线段下方）
+    annotationGroup.text(`${logoConfig.width} CM`)
+      .font({ family: 'Arial, sans-serif', size: 8, weight: 'bold' })
+      .fill('#0066cc')
+      .move(logoX + logoWidth / 2, widthLineY + 12)
+      .attr('text-anchor', 'middle')
+    
+    // 垂直位置标注线段（精确对齐LOGO水平中心）
+    const logoHorizontalCenterX = logoX + (logoWidth / 2)  // LOGO精确水平中心位置
+    const apronTopY = logoY - (logoConfig.offsetY * this.scale) // 围裙顶部位置，从LOGO位置反推
+    const logoTopY = logoY // LOGO顶部位置
+    
+    // 绘制垂直位置标注线段（从围裙顶部到LOGO上沿上方5px处，留出箭头空间）
+    annotationGroup.line(logoHorizontalCenterX, apronTopY, logoHorizontalCenterX, logoTopY - 5)
+      .stroke({ color: '#cc6600', width: 1 })
+    
+    // 上侧箭头（围裙顶部，朝下向内）
+    annotationGroup.polygon([
+      [logoHorizontalCenterX, apronTopY],
+      [logoHorizontalCenterX - 3, apronTopY + 5],
+      [logoHorizontalCenterX + 3, apronTopY + 5]
+    ]).fill('#cc6600')
+    
+    // 下侧箭头（箭头尖端精确指向LOGO上沿中心点）
+    annotationGroup.polygon([
+      [logoHorizontalCenterX, logoTopY],         // 箭头尖端精确对准LOGO上沿中心
+      [logoHorizontalCenterX - 3, logoTopY - 5], // 箭头左翼
+      [logoHorizontalCenterX + 3, logoTopY - 5]  // 箭头右翼
+    ]).fill('#cc6600')
+    
+    // 垂直位置数值（在线段左侧）
+    annotationGroup.text(`${logoConfig.offsetY} CM`)
+      .font({ family: 'Arial, sans-serif', size: 8, weight: 'bold' })
+      .fill('#cc6600')
+      .move(logoHorizontalCenterX - 5, (apronTopY + logoTopY) / 2)
+      .attr('text-anchor', 'end')
+      .attr('dominant-baseline', 'middle')
   }
 } 
