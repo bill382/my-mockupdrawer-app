@@ -392,7 +392,11 @@ export default function ApronDesignGenerator() {
                       min="15"
                       max="50"
                       value={design.waistHeight}
-                      onChange={(e) => updateDesign({ waistHeight: Number(e.target.value) || 25 })}
+                      onChange={(e) => {
+                        const newWaistHeight = Number(e.target.value) || 25
+                        const newTotalHeight = newWaistHeight + design.bottomHeight
+                        updateDesign({ totalHeight: newTotalHeight })
+                      }}
                     />
                     <div className="text-xs text-gray-500 mt-1">
                       约占总高度的33%
@@ -406,7 +410,11 @@ export default function ApronDesignGenerator() {
                       min="20"
                       max="80"
                       value={design.bottomHeight}
-                      onChange={(e) => updateDesign({ bottomHeight: Number(e.target.value) || 40 })}
+                      onChange={(e) => {
+                        const newBottomHeight = Number(e.target.value) || 40
+                        const newTotalHeight = design.waistHeight + newBottomHeight
+                        updateDesign({ totalHeight: newTotalHeight })
+                      }}
                     />
                     <div className="text-xs text-gray-500 mt-1">
                       自动计算：总高度 - 上部高度
@@ -453,7 +461,8 @@ export default function ApronDesignGenerator() {
                           id="hexValue"
                           value={design.colorConfig.hexValue}
                           onChange={(e) => updateColorConfig({ 
-                            ...design.colorConfig, 
+                            type: 'solid',
+                            colorName: design.colorConfig.type === 'solid' ? design.colorConfig.colorName : '珊瑚红',
                             hexValue: e.target.value 
                           })}
                           placeholder="#FF6B6B"
@@ -462,7 +471,8 @@ export default function ApronDesignGenerator() {
                           type="color"
                           value={design.colorConfig.hexValue}
                           onChange={(e) => updateColorConfig({ 
-                            ...design.colorConfig, 
+                            type: 'solid',
+                            colorName: design.colorConfig.type === 'solid' ? design.colorConfig.colorName : '珊瑚红',
                             hexValue: e.target.value 
                           })}
                           className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
@@ -497,8 +507,10 @@ export default function ApronDesignGenerator() {
                             id="patternName"
                             value={design.colorConfig.patternName}
                             onChange={(e) => updateColorConfig({ 
-                              ...design.colorConfig, 
-                              patternName: e.target.value 
+                              type: 'pattern',
+                              file: design.colorConfig.type === 'pattern' ? design.colorConfig.file : null,
+                              patternName: e.target.value,
+                              repeatMode: design.colorConfig.type === 'pattern' ? design.colorConfig.repeatMode : 'tile'
                             })}
                             placeholder="例如：花朵图案"
                           />
@@ -515,9 +527,10 @@ export default function ApronDesignGenerator() {
                                 if (file) {
                                   setTempFile(file)
                                   updateColorConfig({ 
-                                    ...design.colorConfig, 
+                                    type: 'pattern',
                                     file,
-                                    patternName: file.name.replace(/\.[^/.]+$/, '')
+                                    patternName: file.name.replace(/\.[^/.]+$/, ''),
+                                    repeatMode: design.colorConfig.type === 'pattern' ? design.colorConfig.repeatMode : 'tile'
                                   })
                                   toast.success('图案文件已上传')
                                 }
