@@ -33,6 +33,17 @@ export class ApronSVGGenerator {
     return this.design.pocketColor?.hexValue || '#D3D3D3'
   }
 
+  // 计算LOGO高度
+  private calculateLogoHeight(logoConfig: LogoConfig): number {
+    if (logoConfig.originalWidth && logoConfig.originalHeight) {
+      // 根据原始文件尺寸计算高度
+      return logoConfig.width * logoConfig.originalHeight / logoConfig.originalWidth
+    } else {
+      // 没有原始尺寸信息时，默认使用正方形
+      return logoConfig.width
+    }
+  }
+
   async generate(): Promise<string> {
     // 计算SVG画布尺寸（包含标注空间）
     const maxWidth = Math.max(this.design.topWidth, this.design.bottomWidth)
@@ -1246,45 +1257,95 @@ export class ApronSVGGenerator {
     
     const pocketConfig = this.design.pocketConfig
     
+    console.log('口袋配置调试:', {
+      pocketConfig,
+      mode: pocketConfig?.mode,
+      hasConfig: !!pocketConfig
+    })
+    
     // 如果没有口袋配置，直接返回
     if (!pocketConfig || pocketConfig.mode === 'none') {
+      console.log('口袋配置为空或模式为none，跳过绘制')
       return
     }
     
+    console.log('开始绘制口袋，模式:', pocketConfig.mode)
+    
     switch (pocketConfig.mode) {
-      case 'single':
+      case 'single': {
+        console.log('绘制单口袋')
         this.drawSinglePocket(startX, startY, bottomWidth, waistHeight, bottomHeight)
         break
-      case 'double':
+      }
+      case 'double': {
+        console.log('绘制双口袋')
         this.drawDoublePockets(startX, startY, bottomWidth, waistHeight, bottomHeight)
         break
-      case 'multiple':
+      }
+      case 'multiple': {
+        console.log('绘制多口袋')
         this.drawMultiplePockets(startX, startY, bottomWidth, waistHeight, bottomHeight)
         break
+      }
+      default:
+        console.log('未知口袋模式:', pocketConfig.mode)
     }
   }
 
   private drawSinglePocket(startX: number, startY: number, bottomWidth: number, waistHeight: number, bottomHeight: number) {
     const config = this.design.pocketConfig.singlePocket
-    if (!config) return
     
-    const pocketWidth = config.width * this.scale
-    const pocketHeight = config.height * this.scale
+    console.log('单口袋配置调试:', {
+      config,
+      hasConfig: !!config,
+      pocketConfigFull: this.design.pocketConfig
+    })
     
-    // 计算口袋位置
-    const pocketX = startX + (bottomWidth * config.positionX / 100) - (pocketWidth / 2)
-    const pocketY = startY + waistHeight + (bottomHeight * config.positionY / 100) - (pocketHeight / 2)
+    if (!config) {
+      console.log('单口袋配置为空，跳过绘制')
+      return
+    }
+    
+    // 使用默认值作为备用
+    const pocketWidth = (config.width || 15) * this.scale
+    const pocketHeight = (config.height || 12) * this.scale
+    
+    console.log('计算口袋尺寸:', {
+      pocketWidth: pocketWidth / this.scale,
+      pocketHeight: pocketHeight / this.scale,
+      scale: this.scale
+    })
+    
+    // 计算口袋位置 - 使用配置的垂直位置
+    const pocketX = startX + (bottomWidth / 2) - (pocketWidth / 2)
+    const pocketY = startY + waistHeight + (bottomHeight * (config.positionY || 60) / 100) - (pocketHeight / 2)
+    
+    console.log('计算口袋位置:', {
+      pocketX: pocketX / this.scale,
+      pocketY: pocketY / this.scale,
+      positionY: config.positionY || 60,
+      startX: startX / this.scale,
+      startY: startY / this.scale,
+      bottomWidth: bottomWidth / this.scale,
+      waistHeight: waistHeight / this.scale,
+      bottomHeight: bottomHeight / this.scale
+    })
     
     // 绘制口袋轮廓
-    this.svg.rect(pocketWidth, pocketHeight)
+    const pocketRect = this.svg.rect(pocketWidth, pocketHeight)
       .move(pocketX, pocketY)
       .fill(this.getPocketColor())
-      .stroke(this.getPocketColor())
+      .stroke('#333333')
       .attr('stroke-width', 1.5)
       .attr('opacity', 0.8)
     
+    console.log('口袋绘制完成:', {
+      pocketColor: this.getPocketColor(),
+      rectElement: !!pocketRect
+    })
+    
     // 添加口袋标注
-    this.svg.text(`口袋: ${config.width}×${config.height}CM`)
+    this.svg.text(`单口袋: ${config.width || 15}×${config.height || 12}CM`)
       .move(pocketX, pocketY - 15)
       .font({ size: 9, family: 'Arial, sans-serif' })
       .fill('#666666')
@@ -1294,23 +1355,24 @@ export class ApronSVGGenerator {
     const config = this.design.pocketConfig.doublePockets
     if (!config) return
     
-    const leftPocketWidth = config.leftPocket.width * this.scale
-    const leftPocketHeight = config.leftPocket.height * this.scale
-    const rightPocketWidth = config.rightPocket.width * this.scale
-    const rightPocketHeight = config.rightPocket.height * this.scale
-    const spacing = config.spacing * this.scale
+    // 使用默认值作为备用
+    const leftPocketWidth = (config.leftPocket?.width || 12) * this.scale
+    const leftPocketHeight = (config.leftPocket?.height || 10) * this.scale
+    const rightPocketWidth = (config.rightPocket?.width || 12) * this.scale
+    const rightPocketHeight = (config.rightPocket?.height || 10) * this.scale
+    const spacing = (config.spacing || 0) * this.scale // 默认间距改为0
     
     // 计算总宽度和起始位置
     const totalWidth = leftPocketWidth + spacing + rightPocketWidth
     const startPocketX = startX + (bottomWidth - totalWidth) / 2
-    const pocketY = startY + waistHeight + (bottomHeight * config.positionY / 100) - Math.max(leftPocketHeight, rightPocketHeight) / 2
+    const pocketY = startY + waistHeight + (bottomHeight * (config.positionY || 60) / 100) - Math.max(leftPocketHeight, rightPocketHeight) / 2
     
     // 绘制左口袋
     const leftPocketX = startPocketX
     this.svg.rect(leftPocketWidth, leftPocketHeight)
       .move(leftPocketX, pocketY)
       .fill(this.getPocketColor())
-      .stroke(this.getPocketColor())
+      .stroke('#333333')
       .attr('stroke-width', 1.5)
       .attr('opacity', 0.8)
     
@@ -1319,40 +1381,43 @@ export class ApronSVGGenerator {
     this.svg.rect(rightPocketWidth, rightPocketHeight)
       .move(rightPocketX, pocketY)
       .fill(this.getPocketColor())
-      .stroke(this.getPocketColor())
+      .stroke('#333333')
       .attr('stroke-width', 1.5)
       .attr('opacity', 0.8)
     
     // 添加口袋标注
-    this.svg.text(`左口袋: ${config.leftPocket.width}×${config.leftPocket.height}CM`)
+    this.svg.text(`左口袋: ${config.leftPocket?.width || 12}×${config.leftPocket?.height || 10}CM`)
       .move(leftPocketX, pocketY - 15)
       .font({ size: 9, family: 'Arial, sans-serif' })
       .fill('#666666')
     
-    this.svg.text(`右口袋: ${config.rightPocket.width}×${config.rightPocket.height}CM`)
+    this.svg.text(`右口袋: ${config.rightPocket?.width || 12}×${config.rightPocket?.height || 10}CM`)
       .move(rightPocketX, pocketY - 15)
       .font({ size: 9, family: 'Arial, sans-serif' })
       .fill('#666666')
     
-    // 添加间距标注
-    this.svg.text(`间距: ${config.spacing}CM`)
-      .move(leftPocketX + leftPocketWidth + spacing/2, pocketY + Math.max(leftPocketHeight, rightPocketHeight) + 10)
-      .font({ size: 8, anchor: 'middle', family: 'Arial, sans-serif' })
-      .fill('#999999')
+    // 只有间距大于0时才添加间距标注
+    if ((config.spacing || 0) > 0) {
+      this.svg.text(`间距: ${config.spacing || 0}CM`)
+        .move(leftPocketX + leftPocketWidth + spacing/2, pocketY + Math.max(leftPocketHeight, rightPocketHeight) + 10)
+        .font({ size: 8, anchor: 'middle', family: 'Arial, sans-serif' })
+        .fill('#999999')
+    }
   }
 
   private drawMultiplePockets(startX: number, startY: number, bottomWidth: number, waistHeight: number, bottomHeight: number) {
     const config = this.design.pocketConfig.multiplePockets
     if (!config) return
     
-    const totalWidth = config.totalWidth * this.scale
-    const pocketHeight = config.height * this.scale
-    const pocketCount = config.count
+    // 使用默认值作为备用
+    const totalWidth = (config.totalWidth || 30) * this.scale
+    const pocketHeight = (config.height || 8) * this.scale
+    const pocketCount = config.count || 3
     const singlePocketWidth = totalWidth / pocketCount
     
-    // 计算起始位置
+    // 计算起始位置 - 使用配置的垂直位置
     const startPocketX = startX + (bottomWidth - totalWidth) / 2
-    const pocketY = startY + waistHeight + (bottomHeight * config.positionY / 100) - (pocketHeight / 2)
+    const pocketY = startY + waistHeight + (bottomHeight * (config.positionY || 60) / 100) - (pocketHeight / 2)
     
     // 绘制每个口袋
     for (let i = 0; i < pocketCount; i++) {
@@ -1361,26 +1426,26 @@ export class ApronSVGGenerator {
       this.svg.rect(singlePocketWidth, pocketHeight)
         .move(pocketX, pocketY)
         .fill(this.getPocketColor())
-        .stroke(this.getPocketColor())
+        .stroke('#333333')
         .attr('stroke-width', 1.5)
         .attr('opacity', 0.8)
       
       // 如果不是最后一个口袋，绘制分隔线
       if (i < pocketCount - 1) {
         this.svg.line(pocketX + singlePocketWidth, pocketY, pocketX + singlePocketWidth, pocketY + pocketHeight)
-          .stroke(this.getPocketColor())
+          .stroke('#333333')
           .attr('stroke-width', 1)
           .attr('stroke-dasharray', '2,2')
       }
     }
     
     // 添加口袋标注
-    this.svg.text(`${pocketCount}个口袋: 总宽${config.totalWidth}CM × 高${config.height}CM`)
+    this.svg.text(`${pocketCount}个口袋: 总宽${config.totalWidth || 30}CM × 高${config.height || 8}CM`)
       .move(startPocketX, pocketY - 15)
       .font({ size: 9, family: 'Arial, sans-serif' })
       .fill('#666666')
     
-    this.svg.text(`单个口袋宽度: ${(config.totalWidth / pocketCount).toFixed(1)}CM`)
+    this.svg.text(`单个口袋宽度: ${((config.totalWidth || 30) / pocketCount).toFixed(1)}CM`)
       .move(startPocketX, pocketY + pocketHeight + 10)
       .font({ size: 8, family: 'Arial, sans-serif' })
       .fill('#999999')
@@ -1540,7 +1605,8 @@ export class ApronSVGGenerator {
       hasConfigFile: !!logoConfig.file,
       logoName: logoConfig.logoName,
       width: logoConfig.width,
-      aspectRatio: logoConfig.aspectRatio,
+      originalWidth: logoConfig.originalWidth,
+      originalHeight: logoConfig.originalHeight,
       offsetX: logoConfig.offsetX,
       offsetY: logoConfig.offsetY,
       opacity: logoConfig.opacity
@@ -1617,9 +1683,9 @@ export class ApronSVGGenerator {
     areaHeight: number
   ) {
     try {
-      // 使用厘米单位和宽高比计算LOGO的实际尺寸和位置
+      // 使用厘米单位计算LOGO的实际尺寸和位置
       const logoWidth = logoConfig.width * this.scale // 宽度（厘米转像素）
-      const logoHeight = (logoConfig.width / logoConfig.aspectRatio) * this.scale // 高度（根据宽高比计算）
+      const logoHeight = this.calculateLogoHeight(logoConfig) * this.scale // 高度（根据原始比例计算）
       const logoX = areaX + (logoConfig.offsetX * this.scale) // X位置（厘米转像素）
       const logoY = areaY + (logoConfig.offsetY * this.scale) // Y位置（厘米转像素）
       
@@ -1684,9 +1750,9 @@ export class ApronSVGGenerator {
     areaHeight: number
   ) {
     try {
-      // 使用厘米单位和宽高比计算LOGO的实际尺寸和位置
+      // 使用厘米单位计算LOGO的实际尺寸和位置
       const logoWidth = logoConfig.width * this.scale // 宽度（厘米转像素）
-      const logoHeight = (logoConfig.width / logoConfig.aspectRatio) * this.scale // 高度（根据宽高比计算）
+      const logoHeight = this.calculateLogoHeight(logoConfig) * this.scale // 高度（根据原始比例计算）
       const logoX = areaX + (logoConfig.offsetX * this.scale) // X位置（厘米转像素）
       const logoY = areaY + (logoConfig.offsetY * this.scale) // Y位置（厘米转像素）
       
@@ -1711,9 +1777,9 @@ export class ApronSVGGenerator {
     areaHeight: number,
     logoConfig: LogoConfig
   ) {
-    // 使用厘米单位和宽高比计算LOGO的实际尺寸和位置
+    // 使用厘米单位计算LOGO的实际尺寸和位置
     const logoWidth = logoConfig.width * this.scale // 宽度（厘米转像素）
-    const logoHeight = (logoConfig.width / logoConfig.aspectRatio) * this.scale // 高度（根据宽高比计算）
+    const logoHeight = this.calculateLogoHeight(logoConfig) * this.scale // 高度（根据原始比例计算）
     const logoX = areaX + (logoConfig.offsetX * this.scale) // X位置（厘米转像素）
     const logoY = areaY + (logoConfig.offsetY * this.scale) // Y位置（厘米转像素）
     

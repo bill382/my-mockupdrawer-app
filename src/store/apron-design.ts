@@ -99,7 +99,8 @@ export interface LogoConfig {
   file: File | null // LOGO矢量文件
   logoName: string // LOGO名称
   width: number // LOGO宽度 (厘米)
-  aspectRatio: number // 宽高比 (宽度/高度)，默认1为正方形
+  originalWidth?: number // 原始文件宽度(像素)
+  originalHeight?: number // 原始文件高度(像素)
   offsetX: number // 水平偏移距离 (厘米，从左边算起)
   offsetY: number // 垂直偏移距离 (厘米，从顶部算起)
   opacity: number // 透明度 (0-100)
@@ -194,7 +195,6 @@ const defaultDesign: ApronDesign = {
     file: null,
     logoName: '自定义LOGO',
     width: 8, // 默认8厘米宽度
-    aspectRatio: 1, // 默认正方形
     offsetX: 15, // 距离左边15厘米
     offsetY: 12, // 距离顶部12厘米
     opacity: 100 // 完全不透明
@@ -271,7 +271,7 @@ export const useApronDesignStore = create<ApronDesignStore>()(
         set({ design: defaultDesign, tempFile: null, logoTempFile: null })
     }),
     {
-      name: 'apron-design-storage-v10', // 更改存储键名以清除旧数据，支持LOGO宽高比
+      name: 'apron-design-storage-v11', // 更改存储键名以清除旧数据，移除LOGO宽高比配置
       partialize: (state) => ({
         design: {
           ...state.design,
